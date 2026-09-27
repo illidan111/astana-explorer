@@ -686,19 +686,30 @@
   <script>
     const map = L.map('map').setView([51.169392, 71.449074], 12);
 
-    const LIGHT_TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    const LIGHT_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const DARK_TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-    const tileLayerOptions = {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
-    };
+
+    function getTileLayerOptions(theme) {
+      const attribution = theme === 'dark'
+        ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+      return {
+        attribution,
+        subdomains: 'abc',
+        maxZoom: 19
+      };
+    }
+
+    function createTileLayer(theme, opacity = 1) {
+      return L.tileLayer(
+        theme === 'dark' ? DARK_TILE_URL : LIGHT_TILE_URL,
+        { ...getTileLayerOptions(theme), opacity }
+      );
+    }
 
     let currentTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-    let tileLayer = L.tileLayer(
-      currentTheme === 'dark' ? DARK_TILE_URL : LIGHT_TILE_URL,
-      tileLayerOptions
-    ).addTo(map);
+    let tileLayer = createTileLayer(currentTheme).addTo(map);
     let pendingTileLayer = null;
     let retiringTileLayer = null;
     let tileRemovalTimeout = null;
@@ -720,10 +731,7 @@
       retiringTileLayer = null;
 
       const previousLayer = tileLayer;
-      const nextLayer = L.tileLayer(
-        theme === 'dark' ? DARK_TILE_URL : LIGHT_TILE_URL,
-        { ...tileLayerOptions, opacity: 0 }
-      );
+      const nextLayer = createTileLayer(theme, 0);
 
       pendingTileLayer = nextLayer;
 
