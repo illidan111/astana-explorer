@@ -24,10 +24,11 @@
     })();
   </script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <style>
     :root {
       color-scheme: light;
-
       --color-surface: #ffffff;
       --color-surface-translucent: rgba(255, 255, 255, 0.96);
       --color-input-surface: #ffffff;
@@ -56,7 +57,6 @@
 
     :root[data-theme="dark"] {
       color-scheme: dark;
-
       --color-surface: #1e293b;
       --color-surface-translucent: rgba(15, 23, 42, 0.96);
       --color-input-surface: #0f172a;
@@ -101,6 +101,59 @@
       background: #0f172a;
     }
 
+    .map-skeleton {
+      position: absolute;
+      inset: 0;
+      z-index: 650;
+      overflow: hidden;
+      background: #e2e8f0;
+      opacity: 1;
+      pointer-events: none;
+      transition: opacity 100ms ease, visibility 0s linear 100ms;
+    }
+
+    :root[data-theme="dark"] .map-skeleton {
+      background: #0f172a;
+    }
+
+    .map-skeleton.is-hidden {
+      visibility: hidden;
+      opacity: 0;
+    }
+
+    .map-skeleton-rectangle {
+      position: absolute;
+      border-radius: 8px;
+      background: rgba(148, 163, 184, 0.82);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    }
+
+    .map-skeleton-rectangle:nth-child(1) {
+      top: 28%;
+      left: 22%;
+      width: 150px;
+      height: 78px;
+    }
+
+    .map-skeleton-rectangle:nth-child(2) {
+      top: 48%;
+      right: 19%;
+      width: 180px;
+      height: 92px;
+    }
+
+    .map-skeleton-rectangle:nth-child(3) {
+      bottom: 17%;
+      left: 40%;
+      width: 125px;
+      height: 68px;
+    }
+
+    :root[data-theme="dark"] .map-skeleton-rectangle {
+      background: rgba(71, 85, 105, 0.9);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
     .leaflet-tile-pane .leaflet-layer,
     .leaflet-tile,
     .leaflet-marker-icon {
@@ -123,17 +176,45 @@
       transition: background-color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
     }
 
-    .theme-toggle {
+    .places-counter {
+      margin: 0 0 8px;
+      color: var(--color-text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      transition: color 250ms ease;
+    }
+
+    .weather-widget {
       position: absolute;
-      top: 20px;
-      right: 20px;
+      top: 84px;
+      left: 20px;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      min-height: 40px;
+      box-sizing: border-box;
+      padding: 0 13px;
+      border: 1px solid var(--color-panel-border);
+      border-radius: 12px;
+      background: var(--color-surface-translucent);
+      color: var(--color-text);
+      box-shadow: var(--shadow-panel);
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+    }
+
+    .theme-toggle,
+    .list-view-toggle {
+      position: absolute;
       z-index: 1002;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 44px;
       height: 44px;
-      padding: 0;
+      padding: 0 12px;
       border: 1px solid var(--color-panel-border);
       border-radius: 12px;
       background: var(--color-surface-translucent);
@@ -141,18 +222,183 @@
       box-shadow: var(--shadow-panel);
       cursor: pointer;
       font: inherit;
-      font-size: 23px;
-      line-height: 1;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
       transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
     }
 
-    .theme-toggle:hover {
+    .theme-toggle {
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      padding: 0;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .list-view-toggle {
+      top: 76px;
+      right: 20px;
+      gap: 7px;
+    }
+
+    .theme-toggle:hover,
+    .list-view-toggle:hover {
       background: var(--color-hover);
     }
 
-    .theme-toggle:focus-visible {
+    .theme-toggle:focus-visible,
+    .list-view-toggle:focus-visible {
       outline: 3px solid var(--color-focus-outline);
       outline-offset: 2px;
+    }
+
+    .list-view-toggle[aria-expanded="true"] {
+      border-color: var(--color-primary);
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+    }
+
+    .list-view {
+      position: absolute;
+      top: 132px;
+      right: 20px;
+      z-index: 1001;
+      display: flex;
+      flex-direction: column;
+      width: min(320px, calc(100vw - 40px));
+      max-height: calc(100vh - 152px);
+      min-height: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 1px solid var(--color-panel-border);
+      border-radius: 16px;
+      background: var(--color-surface-translucent);
+      box-shadow: var(--shadow-panel);
+      color: var(--color-text);
+      transition: background-color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+    }
+
+    .list-view[hidden] {
+      display: none;
+    }
+
+    .list-view-heading {
+      flex: 0 0 auto;
+      margin: 0;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--color-border-soft);
+      color: var(--color-text);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .attraction-list {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 0;
+      overflow-y: auto;
+      margin: 0;
+      padding: 8px;
+      list-style: none;
+      scrollbar-width: thin;
+      overscroll-behavior: contain;
+    }
+
+    .attraction-list-item {
+      min-width: 0;
+    }
+
+    .attraction-list-button {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      min-height: 46px;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--color-text);
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+    }
+
+    .attraction-list-button:hover,
+    .attraction-list-button[aria-current="true"] {
+      border-color: var(--color-border-soft);
+      background: var(--color-hover);
+    }
+
+    .attraction-list-button:focus-visible {
+      outline: 3px solid var(--color-focus-outline);
+      outline-offset: 1px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .attraction-list-emoji {
+      display: flex;
+      flex: 0 0 30px;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--color-hover-accent);
+      font-size: 18px;
+    }
+
+    .attraction-list-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--color-text);
+      font-size: 12px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .attraction-list-status {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 88px;
+      overflow: hidden;
+      font-size: 10px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .attraction-list-status.is-open {
+      color: var(--color-open);
+    }
+
+    .attraction-list-status.is-closed {
+      color: var(--color-closed);
+    }
+
+    .attraction-list-rating {
+      flex: 0 0 auto;
+      color: var(--color-text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .attraction-list-empty {
+      margin: 0;
+      padding: 14px 12px;
+      color: var(--color-text-muted);
+      font-size: 13px;
+      line-height: 1.4;
     }
 
     .find-me-control {
@@ -309,12 +555,36 @@
       font-size: 22px;
     }
 
+    .custom-marker-cluster {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 48px;
+      height: 48px;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      background: #1d4ed8;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1;
+      text-align: center;
+      transition: transform 180ms ease, background-color 180ms ease;
+    }
+
+    .custom-marker-cluster:hover {
+      background: #1e40af;
+      transform: scale(1.08);
+    }
+
     .attraction-card {
       position: absolute;
       top: auto;
       bottom: 20px;
       right: 20px;
-      z-index: 1000;
+      z-index: 1003;
       width: 320px;
       max-width: calc(100vw - 40px);
       max-height: calc(100vh - 40px);
@@ -518,11 +788,62 @@
         width: calc(100vw - 96px);
         transform: none;
       }
+
+      .weather-widget {
+        top: 168px;
+        left: 12px;
+      }
+
+      .list-view-toggle {
+        top: 184px;
+        right: 12px;
+      }
+
+      .list-view {
+        top: 236px;
+        right: 12px;
+        max-height: calc(100vh - 256px);
+      }
+    }
+
+    @media (min-width: 801px) and (max-width: 1100px) {
+      .weather-widget {
+        top: 168px;
+        left: 12px;
+      }
+    }
+
+    @media (min-width: 801px) and (max-width: 950px) {
+      .map-panel {
+        left: 12px;
+        width: min(680px, calc(100vw - 180px));
+        transform: none;
+      }
+
+      .list-view-toggle {
+        top: 184px;
+        right: 12px;
+      }
+
+      .list-view {
+        top: 236px;
+        right: 12px;
+        max-height: calc(100vh - 256px);
+      }
     }
 
     @media (max-width: 768px) {
       .find-me-control {
         transition: opacity 250ms ease, transform 250ms ease, visibility 0s linear 250ms;
+      }
+
+      .weather-widget {
+        position: absolute;
+        top: 160px;
+        left: 12px;
+        width: max-content;
+        max-width: calc(100vw - 24px);
+        margin: 0;
       }
 
       .attraction-card {
@@ -573,6 +894,33 @@
         right: 12px;
       }
 
+      .list-view-toggle {
+        top: 184px;
+        right: 12px;
+        width: 44px;
+        padding: 0;
+        font-size: 21px;
+      }
+
+      .list-view-toggle-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .list-view {
+        top: 236px;
+        right: 12px;
+        width: min(320px, calc(100vw - 24px));
+        max-height: calc(100dvh - 248px);
+      }
+
       .find-me-control {
         bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         left: 12px;
@@ -580,12 +928,48 @@
       }
     }
 
+    @media (max-width: 768px) {
+      html,
+      body {
+        height: auto;
+        min-height: 100%;
+      }
+
+      #map {
+        height: clamp(280px, 58dvh, 520px);
+      }
+
+      .list-view-toggle {
+        position: relative;
+        top: auto;
+        right: auto;
+        z-index: 1002;
+        margin: 12px 12px 0 auto;
+      }
+
+      .list-view {
+        position: relative;
+        top: auto;
+        right: auto;
+        z-index: 1001;
+        width: min(360px, calc(100vw - 24px));
+        max-height: min(38dvh, 320px);
+        margin: 8px 12px 16px auto;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
+      .map-skeleton,
       .leaflet-tile-pane .leaflet-layer,
       .leaflet-tile,
       .leaflet-marker-icon,
       .map-panel,
+      .places-counter,
+      .weather-widget,
       .theme-toggle,
+      .list-view-toggle,
+      .list-view,
+      .attraction-list-button,
       .find-me-control,
       .find-me-button,
       .location-status,
@@ -601,22 +985,31 @@
       .card-details,
       .card-rating,
       .card-status,
-      .card-button {
+      .card-button,
+      .custom-marker-cluster {
         transition: none !important;
       }
 
       .filter-chip:active,
       .card-button:active,
-      .favorite-toggle.is-favorite {
+      .favorite-toggle.is-favorite,
+      .custom-marker-cluster:hover {
         transform: none;
       }
     }
   </style>
 </head>
 <body>
-  <div id="map" aria-label="Карта достопримечательностей Астаны"></div>
+  <div id="map" aria-label="Карта достопримечательностей Астаны">
+    <div class="map-skeleton" id="map-skeleton" aria-hidden="true">
+      <div class="map-skeleton-rectangle"></div>
+      <div class="map-skeleton-rectangle"></div>
+      <div class="map-skeleton-rectangle"></div>
+    </div>
+  </div>
 
   <div class="map-panel" id="map-panel" aria-label="Поиск и фильтры достопримечательностей">
+    <div class="places-counter" id="places-counter" aria-live="polite"></div>
     <input
       class="search-input"
       id="search-input"
@@ -636,6 +1029,8 @@
     </div>
   </div>
 
+  <div class="weather-widget" role="status" aria-label="Погода: солнечно, 18 градусов Цельсия">☀️ 18°C</div>
+
   <button
     class="theme-toggle"
     id="theme-toggle"
@@ -644,6 +1039,21 @@
     aria-pressed="false"
     title="Переключить тему"
   >🌙</button>
+
+  <button
+    class="list-view-toggle"
+    id="list-view-toggle"
+    type="button"
+    aria-label="List view"
+    aria-expanded="false"
+    aria-controls="list-view"
+    title="List view"
+  >☷ <span class="list-view-toggle-label">List view</span></button>
+
+  <section class="list-view" id="list-view" aria-label="Список достопримечательностей" hidden>
+    <h2 class="list-view-heading" id="list-view-heading">Places</h2>
+    <ul class="attraction-list" id="attraction-list"></ul>
+  </section>
 
   <div class="find-me-control" id="find-me-control">
     <div class="location-status" id="location-status" role="status" aria-live="polite"></div>
@@ -683,8 +1093,15 @@
   </section>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script>
     const map = L.map('map').setView([51.169392, 71.449074], 12);
+
+    const mapSkeleton = document.getElementById('map-skeleton');
+    window.setTimeout(() => {
+      mapSkeleton.classList.add('is-hidden');
+      window.setTimeout(() => mapSkeleton.remove(), 100);
+    }, 350);
 
     const LIGHT_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const DARK_TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
@@ -694,11 +1111,7 @@
         ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-      return {
-        attribution,
-        subdomains: 'abc',
-        maxZoom: 19
-      };
+      return { attribution, subdomains: 'abc', maxZoom: 19 };
     }
 
     function createTileLayer(theme, opacity = 1) {
@@ -732,7 +1145,6 @@
 
       const previousLayer = tileLayer;
       const nextLayer = createTileLayer(theme, 0);
-
       pendingTileLayer = nextLayer;
 
       nextLayer.once('load', () => {
@@ -760,26 +1172,11 @@
     }
 
     const categories = {
-      attraction: {
-        label: 'Attraction',
-        color: '#2563eb'
-      },
-      food: {
-        label: 'Food',
-        color: '#f97316'
-      },
-      park: {
-        label: 'Park',
-        color: '#16a34a'
-      },
-      shopping: {
-        label: 'Shopping',
-        color: '#9333ea'
-      },
-      museum: {
-        label: 'Museum',
-        color: '#8b5e34'
-      }
+      attraction: { label: 'Attraction', color: '#2563eb' },
+      food: { label: 'Food', color: '#f97316' },
+      park: { label: 'Park', color: '#16a34a' },
+      shopping: { label: 'Shopping', color: '#9333ea' },
+      museum: { label: 'Museum', color: '#8b5e34' }
     };
 
     const categoryStyles = document.createElement('style');
@@ -923,6 +1320,7 @@
       }
     ];
 
+    const placesCounter = document.getElementById('places-counter');
     const card = document.getElementById('attraction-card');
     const cardEmoji = document.getElementById('card-emoji');
     const cardName = document.getElementById('card-name');
@@ -935,6 +1333,10 @@
     const closeButton = document.getElementById('close-button');
     const favoriteToggle = document.getElementById('favorite-toggle');
     const themeToggle = document.getElementById('theme-toggle');
+    const listViewToggle = document.getElementById('list-view-toggle');
+    const listView = document.getElementById('list-view');
+    const listViewHeading = document.getElementById('list-view-heading');
+    const attractionList = document.getElementById('attraction-list');
     const mapPanel = document.getElementById('map-panel');
     const searchInput = document.getElementById('search-input');
     const filterChips = document.getElementById('filter-chips');
@@ -1037,11 +1439,7 @@
             showLocationStatus('Location found.', 3500);
           },
           handleLocationError,
-          {
-            enableHighAccuracy: true,
-            timeout: 12000,
-            maximumAge: 0
-          }
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
         );
       } catch (error) {
         handleLocationError(error);
@@ -1073,6 +1471,18 @@
       updateThemeToggle();
     });
 
+    listViewToggle.addEventListener('click', () => {
+      const shouldExpand = listViewToggle.getAttribute('aria-expanded') !== 'true';
+
+      if (shouldExpand) {
+        renderAttractionList(getFilteredAttractions());
+        updateListAttractionStatuses();
+      }
+
+      listViewToggle.setAttribute('aria-expanded', String(shouldExpand));
+      listView.hidden = !shouldExpand;
+    });
+
     updateThemeToggle();
 
     L.DomEvent.disableClickPropagation(card);
@@ -1081,40 +1491,92 @@
     L.DomEvent.disableScrollPropagation(mapPanel);
     L.DomEvent.disableClickPropagation(findMeControl);
     L.DomEvent.disableClickPropagation(themeToggle);
+    L.DomEvent.disableClickPropagation(listViewToggle);
+    L.DomEvent.disableClickPropagation(listView);
+    L.DomEvent.disableScrollPropagation(listView);
 
-    mapPanel.addEventListener('keydown', (event) => {
+    mapPanel.addEventListener('keydown', (event) => event.stopPropagation());
+    findMeControl.addEventListener('keydown', (event) => event.stopPropagation());
+    card.addEventListener('keydown', (event) => event.stopPropagation());
+    themeToggle.addEventListener('keydown', (event) => event.stopPropagation());
+
+    listViewToggle.addEventListener('keydown', (event) => {
       event.stopPropagation();
+
+      if (listView.hidden || !['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+
+      const buttons = attractionList.querySelectorAll('.attraction-list-button');
+      if (!buttons.length) return;
+
+      event.preventDefault();
+      (event.key === 'ArrowDown' ? buttons[0] : buttons[buttons.length - 1]).focus();
     });
 
-    findMeControl.addEventListener('keydown', (event) => {
+    listView.addEventListener('keydown', (event) => {
       event.stopPropagation();
+
+      if (event.key === 'Escape') {
+        listView.hidden = true;
+        listViewToggle.setAttribute('aria-expanded', 'false');
+        listViewToggle.focus();
+        return;
+      }
+
+      const button = event.target.closest('.attraction-list-button');
+      if (!button) return;
+
+      const buttons = [...attractionList.querySelectorAll('.attraction-list-button')];
+      const currentIndex = buttons.indexOf(button);
+      if (currentIndex < 0 || !buttons.length) return;
+
+      let nextIndex = currentIndex;
+
+      switch (event.key) {
+        case 'ArrowDown':
+          nextIndex = (currentIndex + 1) % buttons.length;
+          break;
+        case 'ArrowUp':
+          nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+          break;
+        case 'Home':
+          nextIndex = 0;
+          break;
+        case 'End':
+          nextIndex = buttons.length - 1;
+          break;
+        default:
+          return;
+      }
+
+      event.preventDefault();
+      buttons[nextIndex].focus();
     });
 
-    card.addEventListener('keydown', (event) => {
-      event.stopPropagation();
-    });
+    const attractionMarkers = L.markerClusterGroup({
+      maxClusterRadius: 50,
+      zoomToBoundsOnClick: true,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      iconCreateFunction(cluster) {
+        const count = cluster.getChildCount();
 
-    themeToggle.addEventListener('keydown', (event) => {
-      event.stopPropagation();
-    });
+        return L.divIcon({
+          html: `<span>${count}</span>`,
+          className: 'custom-marker-cluster',
+          iconSize: L.point(48, 48)
+        });
+      }
+    }).addTo(map);
 
-    const attractionMarkers = L.featureGroup().addTo(map);
     const markersById = new Map();
-    const markerRemovalTimers = new Map();
     const visibleMarkerIds = new Set(attractions.map((attraction) => attraction.id));
-    const MARKER_FADE_DURATION = 350;
-
-    function getMarkerFadeDuration() {
-      const reducedMotion = window.matchMedia &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-      return reducedMotion ? 0 : MARKER_FADE_DURATION;
-    }
 
     let selectedAttraction = null;
     let selectedMarker = null;
     let activeFilter = 'all';
     let searchQuery = '';
+    let filterRevision = 0;
+    let listSelectionRevision = 0;
 
     const FAVORITES_STORAGE_KEY = 'astana-explorer-favorites';
     const attractionIds = new Set(attractions.map((attraction) => attraction.id));
@@ -1145,8 +1607,7 @@
       }
     }
 
-    function updateAttractionStatus(attraction) {
-      const now = new Date();
+    function getAttractionStatus(attraction, now = new Date()) {
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const openMinutes = attraction.openHour * 60;
       const closeMinutes = attraction.closeHour * 60;
@@ -1157,91 +1618,166 @@
           ? currentMinutes >= openMinutes || currentMinutes < closeMinutes
           : true;
 
-      if (isOpen) {
-        cardStatus.textContent = `Open until ${String(attraction.closeHour).padStart(2, '0')}:00`;
-        cardStatus.classList.add('is-open');
-        cardStatus.classList.remove('is-closed');
-      } else {
-        cardStatus.textContent = `Closed · Opens at ${String(attraction.openHour).padStart(2, '0')}:00`;
-        cardStatus.classList.add('is-closed');
-        cardStatus.classList.remove('is-open');
-      }
+      const statusText = isOpen
+        ? `Open until ${String(attraction.closeHour).padStart(2, '0')}:00`
+        : `Closed · Opens at ${String(attraction.openHour).padStart(2, '0')}:00`;
+
+      return { isOpen, statusText };
+    }
+
+    function updateAttractionStatus(attraction) {
+      const status = getAttractionStatus(attraction);
+      cardStatus.textContent = status.statusText;
+      cardStatus.classList.toggle('is-open', status.isOpen);
+      cardStatus.classList.toggle('is-closed', !status.isOpen);
+    }
+
+    function updateListAttractionStatuses() {
+      attractionList.querySelectorAll('[data-attraction-status-id]').forEach((statusElement) => {
+        const attraction = attractions.find(
+          (item) => item.id === statusElement.dataset.attractionStatusId
+        );
+        if (!attraction) return;
+
+        const status = getAttractionStatus(attraction);
+        statusElement.textContent = status.statusText;
+        statusElement.classList.toggle('is-open', status.isOpen);
+        statusElement.classList.toggle('is-closed', !status.isOpen);
+      });
     }
 
     function updateSelectedAttractionStatus() {
-      if (selectedAttraction) {
-        updateAttractionStatus(selectedAttraction);
-      }
+      if (selectedAttraction) updateAttractionStatus(selectedAttraction);
+      updateListAttractionStatuses();
     }
 
-    function filterMarkers() {
-      attractions.forEach((attraction) => {
-        const marker = markersById.get(attraction.id);
-        if (!marker) return;
-
+    function getFilteredAttractions() {
+      return attractions.filter((attraction) => {
         const matchesCategory = activeFilter === 'all'
           || (activeFilter === 'favorites'
             ? favoriteIds.has(attraction.id)
             : attraction.category === activeFilter);
         const matchesSearch = attraction.name.toLocaleLowerCase().includes(searchQuery);
-        const shouldShow = matchesCategory && matchesSearch;
+
+        return matchesCategory && matchesSearch;
+      });
+    }
+
+    function renderAttractionList(filteredAttractions) {
+      attractionList.replaceChildren();
+      listViewHeading.textContent = `Places (${filteredAttractions.length})`;
+
+      if (filteredAttractions.length === 0) {
+        const listItem = document.createElement('li');
+        listItem.className = 'attraction-list-item';
+
+        const emptyMessage = document.createElement('p');
+        emptyMessage.className = 'attraction-list-empty';
+        emptyMessage.textContent = 'No places match your search or filters.';
+
+        listItem.appendChild(emptyMessage);
+        attractionList.appendChild(listItem);
+        return;
+      }
+
+      const sortedAttractions = [...filteredAttractions].sort(
+        (first, second) => second.rating - first.rating
+          || first.name.localeCompare(second.name)
+      );
+
+      sortedAttractions.forEach((attraction) => {
+        const listItem = document.createElement('li');
+        const button = document.createElement('button');
+        const emoji = document.createElement('span');
+        const name = document.createElement('span');
+        const status = document.createElement('span');
+        const rating = document.createElement('span');
+        const attractionStatus = getAttractionStatus(attraction);
+
+        listItem.className = 'attraction-list-item';
+        button.className = 'attraction-list-button';
+        button.type = 'button';
+        button.setAttribute('aria-current', String(
+          Boolean(selectedAttraction && selectedAttraction.id === attraction.id)
+        ));
+
+        emoji.className = 'attraction-list-emoji';
+        emoji.setAttribute('aria-hidden', 'true');
+        emoji.textContent = attraction.emoji;
+
+        name.className = 'attraction-list-name';
+        name.textContent = attraction.name;
+
+        status.className = `attraction-list-status ${attractionStatus.isOpen ? 'is-open' : 'is-closed'}`;
+        status.dataset.attractionStatusId = attraction.id;
+        status.textContent = attractionStatus.statusText;
+
+        rating.className = 'attraction-list-rating';
+        rating.textContent = `⭐ ${attraction.rating.toFixed(1)}`;
+
+        button.append(emoji, name, rating, status);
+        listItem.appendChild(button);
+
+        button.addEventListener('click', () => {
+          const requestRevision = ++listSelectionRevision;
+          const expectedFilterRevision = filterRevision;
+
+          const isStillFiltered = getFilteredAttractions().some(
+            (item) => item.id === attraction.id
+          );
+          if (!isStillFiltered) return;
+
+          const marker = markersById.get(attraction.id);
+          if (!marker || !attractionMarkers.hasLayer(marker)) return;
+
+          attractionMarkers.zoomToShowLayer(marker, () => {
+            if (
+              requestRevision !== listSelectionRevision
+              || expectedFilterRevision !== filterRevision
+              || !attractionMarkers.hasLayer(marker)
+            ) {
+              return;
+            }
+
+            const isStillFilteredAfterZoom = getFilteredAttractions().some(
+              (item) => item.id === attraction.id
+            );
+            if (!isStillFilteredAfterZoom) return;
+
+            map.flyTo(attraction.coordinates, Math.max(map.getZoom(), 15));
+            showAttraction(attraction, marker);
+          });
+        });
+
+        attractionList.appendChild(listItem);
+      });
+    }
+
+    function filterMarkers() {
+      filterRevision += 1;
+      listSelectionRevision += 1;
+
+      const filteredAttractions = getFilteredAttractions();
+      const filteredAttractionIds = new Set(
+        filteredAttractions.map((attraction) => attraction.id)
+      );
+
+      placesCounter.textContent = `Showing ${filteredAttractions.length} of ${attractions.length} places`;
+      renderAttractionList(filteredAttractions);
+
+      attractions.forEach((attraction) => {
+        const marker = markersById.get(attraction.id);
+        if (!marker) return;
+
+        const shouldShow = filteredAttractionIds.has(attraction.id);
         const isOnMap = attractionMarkers.hasLayer(marker);
 
         if (shouldShow) {
           visibleMarkerIds.add(attraction.id);
-
-          const removalTimer = markerRemovalTimers.get(attraction.id);
-          if (removalTimer !== undefined) {
-            window.clearTimeout(removalTimer);
-            markerRemovalTimers.delete(attraction.id);
-          }
-
-          if (!isOnMap) {
-            marker.setOpacity(0);
-            attractionMarkers.addLayer(marker);
-
-            const element = marker.getElement();
-            if (element) {
-              element.style.pointerEvents = '';
-            }
-
-            window.requestAnimationFrame(() => {
-              if (visibleMarkerIds.has(attraction.id) && attractionMarkers.hasLayer(marker)) {
-                marker.setOpacity(1);
-              }
-            });
-          } else {
-            marker.setOpacity(1);
-
-            const element = marker.getElement();
-            if (element) {
-              element.style.pointerEvents = '';
-            }
-          }
+          if (!isOnMap) attractionMarkers.addLayer(marker);
         } else {
           visibleMarkerIds.delete(attraction.id);
-
-          if (!isOnMap || markerRemovalTimers.has(attraction.id)) {
-            return;
-          }
-
-          const element = marker.getElement();
-          if (element) {
-            element.style.pointerEvents = 'none';
-          }
-
-          marker.setOpacity(0);
-
-          const fadeDuration = getMarkerFadeDuration();
-          const removalTimer = window.setTimeout(() => {
-            markerRemovalTimers.delete(attraction.id);
-
-            if (!visibleMarkerIds.has(attraction.id) && attractionMarkers.hasLayer(marker)) {
-              attractionMarkers.removeLayer(marker);
-            }
-          }, fadeDuration);
-
-          markerRemovalTimers.set(attraction.id, removalTimer);
+          if (isOnMap) attractionMarkers.removeLayer(marker);
         }
       });
 
@@ -1251,6 +1787,7 @@
     }
 
     function showAttraction(attraction, marker) {
+      listSelectionRevision += 1;
       selectedAttraction = attraction;
       selectedMarker = marker;
 
@@ -1275,14 +1812,17 @@
       card.setAttribute('aria-hidden', 'false');
       card.classList.add('is-visible');
       document.body.classList.add('has-attraction-card');
+      renderAttractionList(getFilteredAttractions());
     }
 
     function hideAttraction() {
+      listSelectionRevision += 1;
       card.classList.remove('is-visible');
       card.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('has-attraction-card');
       selectedAttraction = null;
       selectedMarker = null;
+      renderAttractionList(getFilteredAttractions());
     }
 
     attractions.forEach((attraction) => {
@@ -1302,11 +1842,10 @@
 
       markersById.set(attraction.id, marker);
       attractionMarkers.addLayer(marker);
-
-      marker.on('click', () => {
-        showAttraction(attraction, marker);
-      });
+      marker.on('click', () => showAttraction(attraction, marker));
     });
+
+    filterMarkers();
 
     filterChips.addEventListener('click', (event) => {
       const chip = event.target.closest('[data-filter]');
@@ -1353,7 +1892,6 @@
 
     exploreButton.addEventListener('click', () => {
       if (!selectedAttraction || !selectedMarker) return;
-
       map.flyTo(selectedAttraction.coordinates, 16);
     });
 
@@ -1367,13 +1905,24 @@
 
     window.setInterval(updateSelectedAttractionStatus, 60000);
 
-    window.addEventListener('resize', () => {
-      map.invalidateSize();
-    });
+    let mapResizeFrame = null;
 
-    window.addEventListener('orientationchange', () => {
-      map.invalidateSize();
-    });
+    function invalidateMapSize() {
+      if (mapResizeFrame !== null) return;
+
+      mapResizeFrame = window.requestAnimationFrame(() => {
+        mapResizeFrame = null;
+        map.invalidateSize({ pan: false });
+      });
+    }
+
+    if ('ResizeObserver' in window) {
+      const mapResizeObserver = new ResizeObserver(invalidateMapSize);
+      mapResizeObserver.observe(document.getElementById('map'));
+    }
+
+    window.addEventListener('resize', invalidateMapSize);
+    window.addEventListener('orientationchange', invalidateMapSize);
   </script>
 </body>
 </html>
