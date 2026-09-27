@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Astana Explorer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, sans-serif;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #e2e8f0;
+    }
+
+    .attraction-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: #2563eb;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      font-size: 22px;
+    }
+
+    .attraction-card {
+      position: absolute;
+      top: auto;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      width: min(320px, calc(100vw - 40px));
+      max-height: calc(100vh - 40px);
+      box-sizing: border-box;
+      overflow-y: auto;
+      padding: 20px;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(12px);
+      transition: opacity 250ms ease, transform 250ms ease, visibility 250ms ease;
+      pointer-events: none;
+    }
+
+    .attraction-card.is-visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .card-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-right: 28px;
+    }
+
+    .card-emoji {
+      display: flex;
+      flex: 0 0 44px;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #eff6ff;
+      font-size: 25px;
+    }
+
+    .card-name {
+      margin: 0;
+      color: #172033;
+      font-size: 17px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .card-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #475569;
+      cursor: pointer;
+      font: inherit;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .card-close:hover {
+      background: #f1f5f9;
+    }
+
+    .card-details {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .card-rating {
+      color: #334155;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .card-status {
+      color: #15803d;
+      text-align: right;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .card-button {
+      flex: 1;
+      min-width: 0;
+      min-height: 42px;
+      border-radius: 9px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+    }
+
+    .card-button-explore {
+      border: 1px solid #172033;
+      background: #172033;
+      color: #fff;
+    }
+
+    .card-button-route {
+      border: 1px solid #1d4ed8;
+      background: transparent;
+      color: #1d4ed8;
+    }
+
+    .card-button-explore:hover {
+      background: #26334a;
+      border-color: #26334a;
+    }
+
+    .card-button-route:hover {
+      background: #eff6ff;
+    }
+
+    .card-button:focus-visible,
+    .card-close:focus-visible {
+      outline: 3px solid #93c5fd;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 480px) {
+      .attraction-card {
+        top: auto;
+        bottom: 12px;
+        right: 12px;
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .attraction-card,
+      .card-button {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="map" aria-label="Карта достопримечательностей Астаны"></div>
+
+  <section
+    class="attraction-card"
+    id="attraction-card"
+    aria-live="polite"
+    aria-label="Информация о достопримечательности"
+    aria-hidden="true"
+  >
+    <button class="card-close" id="close-button" type="button" aria-label="Закрыть карточку">&times;</button>
+    <div class="card-heading">
+      <div class="card-emoji" id="card-emoji" aria-hidden="true"></div>
+      <h2 class="card-name" id="card-name"></h2>
+    </div>
+    <div class="card-details">
+      <span class="card-rating" id="card-rating"></span>
+      <span class="card-status" id="card-status"></span>
+    </div>
+    <div class="card-actions">
+      <button class="card-button card-button-explore" id="explore-button" type="button">Explore</button>
+      <button class="card-button card-button-route" id="route-button" type="button">Route</button>
+    </div>
+  </section>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([51.169392, 71.449074], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    const attractions = [
+      {
+        name: 'Baiterek',
+        coordinates: [51.1284, 71.4306],
+        rating: 4.8,
+        closingTime: '22:00',
+        emoji: '🏛️'
+      },
+      {
+        name: 'Khan Shatyr',
+        coordinates: [51.1325, 71.4066],
+        rating: 4.6,
+        closingTime: '23:00',
+        emoji: '🎡'
+      },
+      {
+        name: 'Nur-Astana Mosque',
+        coordinates: [51.1801, 71.4467],
+        rating: 4.9,
+        closingTime: '20:00',
+        emoji: '🕌'
+      },
+      {
+        name: 'Palace of Peace and Reconciliation',
+        coordinates: [51.1279, 71.4283],
+        rating: 4.7,
+        closingTime: '19:00',
+        emoji: '🔺'
+      },
+      {
+        name: 'EXPO Nur Alem',
+        coordinates: [51.0925, 71.4067],
+        rating: 4.5,
+        closingTime: '21:00',
+        emoji: '🌐'
+      },
+      {
+        name: 'Central Park',
+        coordinates: [51.1300, 71.4450],
+        rating: 4.4,
+        closingTime: '23:00',
+        emoji: '🌳'
+      }
+    ];
+
+    const card = document.getElementById('attraction-card');
+    const cardEmoji = document.getElementById('card-emoji');
+    const cardName = document.getElementById('card-name');
+    const cardRating = document.getElementById('card-rating');
+    const cardStatus = document.getElementById('card-status');
+    const exploreButton = document.getElementById('explore-button');
+    const routeButton = document.getElementById('route-button');
+    const closeButton = document.getElementById('close-button');
+
+    L.DomEvent.disableClickPropagation(card);
+
+    let selectedAttraction = null;
+    let selectedMarker = null;
+
+    function showAttraction(attraction, marker) {
+      selectedAttraction = attraction;
+      selectedMarker = marker;
+
+      cardEmoji.textContent = attraction.emoji;
+      cardName.textContent = attraction.name;
+      cardRating.textContent = `⭐ ${attraction.rating.toFixed(1)}`;
+      cardStatus.textContent = `Open until ${attraction.closingTime}`;
+      card.setAttribute('aria-hidden', 'false');
+      card.classList.add('is-visible');
+    }
+
+    function hideAttraction() {
+      card.classList.remove('is-visible');
+      card.setAttribute('aria-hidden', 'true');
+      selectedAttraction = null;
+      selectedMarker = null;
+    }
+
+    attractions.forEach((attraction) => {
+      const icon = L.divIcon({
+        html: attraction.emoji,
+        className: 'attraction-icon',
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
+      });
+
+      const marker = L.marker(attraction.coordinates, {
+        icon,
+        title: attraction.name,
+        alt: attraction.name,
+        keyboard: true
+      }).addTo(map);
+
+      marker.on('click', () => {
+        showAttraction(attraction, marker);
+      });
+    });
+
+    map.on('click', hideAttraction);
+    closeButton.addEventListener('click', hideAttraction);
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && card.classList.contains('is-visible')) {
+        hideAttraction();
+      }
+    });
+
+    exploreButton.addEventListener('click', () => {
+      if (!selectedAttraction || !selectedMarker) return;
+
+      map.flyTo(selectedAttraction.coordinates, 16);
+      selectedMarker.openPopup();
+    });
+
+    routeButton.addEventListener('click', () => {
+      if (!selectedAttraction) return;
+
+      const [latitude, longitude] = selectedAttraction.coordinates;
+      const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+      window.open(routeUrl, '_blank', 'noopener,noreferrer');
+    });
+
+    window.addEventListener('resize', () => {
+      map.invalidateSize();
+    });
+
+    window.addEventListener('orientationchange', () => {
+      map.invalidateSize();
+    });
+  </script>
+</body>
+</html>
