@@ -4,8 +4,85 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Astana Explorer</title>
+  <script>
+    (() => {
+      let theme;
+
+      try {
+        theme = window.localStorage.getItem('astana-explorer-theme');
+      } catch (error) {
+        theme = null;
+      }
+
+      if (theme !== 'light' && theme !== 'dark') {
+        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+      }
+
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
+    :root {
+      color-scheme: light;
+
+      --color-surface: #ffffff;
+      --color-surface-translucent: rgba(255, 255, 255, 0.96);
+      --color-input-surface: #ffffff;
+      --color-text: #172033;
+      --color-text-secondary: #475569;
+      --color-text-muted: #64748b;
+      --color-placeholder: #94a3b8;
+      --color-border: #cbd5e1;
+      --color-border-soft: #e2e8f0;
+      --color-hover: #f1f5f9;
+      --color-hover-accent: #eff6ff;
+      --color-primary: #172033;
+      --color-primary-hover: #26334a;
+      --color-primary-text: #ffffff;
+      --color-accent: #1d4ed8;
+      --color-focus: #2563eb;
+      --color-focus-shadow: rgba(37, 99, 235, 0.15);
+      --color-focus-outline: #93c5fd;
+      --color-open: #15803d;
+      --color-closed: #dc2626;
+      --color-favorite: #e11d48;
+      --color-panel-border: rgba(226, 232, 240, 0.9);
+      --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.16);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+
+      --color-surface: #1e293b;
+      --color-surface-translucent: rgba(15, 23, 42, 0.96);
+      --color-input-surface: #0f172a;
+      --color-text: #f1f5f9;
+      --color-text-secondary: #cbd5e1;
+      --color-text-muted: #cbd5e1;
+      --color-placeholder: #94a3b8;
+      --color-border: #475569;
+      --color-border-soft: #475569;
+      --color-hover: #334155;
+      --color-hover-accent: #1e3a5f;
+      --color-primary: #e2e8f0;
+      --color-primary-hover: #cbd5e1;
+      --color-primary-text: #0f172a;
+      --color-accent: #93c5fd;
+      --color-focus: #60a5fa;
+      --color-focus-shadow: rgba(96, 165, 250, 0.24);
+      --color-focus-outline: #60a5fa;
+      --color-open: #4ade80;
+      --color-closed: #f87171;
+      --color-favorite: #fb7185;
+      --color-panel-border: rgba(71, 85, 105, 0.9);
+      --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.4);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+    }
+
     html,
     body {
       width: 100%;
@@ -18,6 +95,205 @@
       width: 100%;
       height: 100%;
       background: #e2e8f0;
+    }
+
+    :root[data-theme="dark"] #map {
+      background: #0f172a;
+    }
+
+    .leaflet-tile-pane .leaflet-layer,
+    .leaflet-tile,
+    .leaflet-marker-icon {
+      transition: opacity 350ms ease;
+    }
+
+    .map-panel {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      z-index: 1000;
+      width: min(680px, calc(100vw - 40px));
+      box-sizing: border-box;
+      padding: 12px;
+      border: 1px solid var(--color-panel-border);
+      border-radius: 16px;
+      background: var(--color-surface-translucent);
+      box-shadow: var(--shadow-panel);
+      transform: translateX(-50%);
+      transition: background-color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+    }
+
+    .theme-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1002;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--color-panel-border);
+      border-radius: 12px;
+      background: var(--color-surface-translucent);
+      color: var(--color-text);
+      box-shadow: var(--shadow-panel);
+      cursor: pointer;
+      font: inherit;
+      font-size: 23px;
+      line-height: 1;
+      transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .theme-toggle:hover {
+      background: var(--color-hover);
+    }
+
+    .theme-toggle:focus-visible {
+      outline: 3px solid var(--color-focus-outline);
+      outline-offset: 2px;
+    }
+
+    .find-me-control {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 1002;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      max-width: min(360px, calc(100vw - 40px));
+    }
+
+    .find-me-button {
+      min-height: 44px;
+      padding: 0 16px;
+      border: 1px solid var(--color-panel-border);
+      border-radius: 12px;
+      background: var(--color-surface-translucent);
+      color: var(--color-text);
+      box-shadow: var(--shadow-panel);
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, opacity 150ms ease, box-shadow 200ms ease;
+    }
+
+    .find-me-button:hover:not(:disabled) {
+      background: var(--color-hover);
+    }
+
+    .find-me-button:focus-visible {
+      outline: 3px solid var(--color-focus-outline);
+      outline-offset: 2px;
+    }
+
+    .find-me-button:disabled {
+      cursor: wait;
+      opacity: 0.75;
+    }
+
+    .location-status {
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid var(--color-panel-border);
+      border-radius: 10px;
+      background: var(--color-surface-translucent);
+      color: var(--color-text);
+      box-shadow: var(--shadow-panel);
+      font-size: 13px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(6px);
+      pointer-events: none;
+      transition: opacity 250ms ease, transform 250ms ease, visibility 0s linear 250ms, background-color 250ms ease, color 250ms ease, border-color 250ms ease;
+    }
+
+    .location-status.is-visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+      transition-delay: 0s;
+    }
+
+    .search-input {
+      display: block;
+      width: 100%;
+      height: 42px;
+      box-sizing: border-box;
+      padding: 0 14px;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      background: var(--color-input-surface);
+      color: var(--color-text);
+      font: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: background-color 250ms ease, color 250ms ease, border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .search-input::placeholder {
+      color: var(--color-placeholder);
+    }
+
+    .search-input:focus {
+      border-color: var(--color-focus);
+      box-shadow: 0 0 0 3px var(--color-focus-shadow);
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin-top: 10px;
+      padding: 1px 1px 3px;
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .filter-chip {
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 0 13px;
+      border: 1px solid var(--color-border-soft);
+      border-radius: 999px;
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+    }
+
+    .filter-chip:hover {
+      border-color: var(--color-focus-outline);
+      background: var(--color-hover-accent);
+    }
+
+    .filter-chip.is-active {
+      border-color: var(--color-primary);
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+    }
+
+    .filter-chip:active {
+      transform: scale(0.97);
+    }
+
+    .filter-chip:focus-visible,
+    .favorite-toggle:focus-visible {
+      outline: 3px solid var(--color-focus-outline);
+      outline-offset: 2px;
     }
 
     .attraction-icon {
@@ -39,18 +315,19 @@
       bottom: 20px;
       right: 20px;
       z-index: 1000;
-      width: min(320px, calc(100vw - 40px));
+      width: 320px;
+      max-width: calc(100vw - 40px);
       max-height: calc(100vh - 40px);
       box-sizing: border-box;
       overflow-y: auto;
       padding: 20px;
       border-radius: 16px;
-      background: #fff;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-card);
       opacity: 0;
       visibility: hidden;
       transform: translateY(12px);
-      transition: opacity 250ms ease, transform 250ms ease, visibility 250ms ease;
+      transition: opacity 250ms ease, transform 300ms ease, visibility 250ms ease, background-color 250ms ease, box-shadow 250ms ease;
       pointer-events: none;
     }
 
@@ -66,7 +343,7 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 14px;
-      padding-right: 28px;
+      padding-right: 90px;
     }
 
     .card-emoji {
@@ -77,22 +354,48 @@
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      background: #eff6ff;
+      background: var(--color-hover-accent);
       font-size: 25px;
+      transition: background-color 250ms ease;
+    }
+
+    .card-title-group {
+      min-width: 0;
     }
 
     .card-name {
       margin: 0;
-      color: #172033;
+      color: var(--color-text);
       font-size: 17px;
       line-height: 1.3;
       overflow-wrap: anywhere;
+      transition: color 250ms ease;
     }
 
-    .card-close {
+    .card-category {
+      display: inline-block;
+      margin-top: 4px;
+      color: var(--color-text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      transition: color 250ms ease;
+    }
+
+    .card-description {
+      margin: 0 0 16px;
+      padding-left: 10px;
+      border-left: 3px solid var(--color-border);
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      transition: color 250ms ease, border-color 250ms ease;
+    }
+
+    .card-close,
+    .favorite-toggle {
       position: absolute;
       top: 14px;
-      right: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -102,15 +405,31 @@
       border: 0;
       border-radius: 8px;
       background: transparent;
-      color: #475569;
+      color: var(--color-text-secondary);
       cursor: pointer;
       font: inherit;
-      font-size: 22px;
       line-height: 1;
+      transition: background-color 200ms ease, color 200ms ease, transform 200ms ease;
     }
 
-    .card-close:hover {
-      background: #f1f5f9;
+    .card-close {
+      right: 14px;
+      font-size: 22px;
+    }
+
+    .favorite-toggle {
+      right: 52px;
+      font-size: 19px;
+    }
+
+    .card-close:hover,
+    .favorite-toggle:hover {
+      background: var(--color-hover);
+    }
+
+    .favorite-toggle.is-favorite {
+      color: var(--color-favorite);
+      transform: scale(1.12);
     }
 
     .card-details {
@@ -119,19 +438,30 @@
       justify-content: space-between;
       gap: 10px;
       margin-bottom: 16px;
-      color: #475569;
+      color: var(--color-text-secondary);
       font-size: 14px;
+      transition: color 250ms ease;
     }
 
     .card-rating {
-      color: #334155;
+      color: var(--color-text);
       font-weight: 600;
       white-space: nowrap;
+      transition: color 250ms ease;
     }
 
     .card-status {
-      color: #15803d;
+      color: var(--color-text-muted);
       text-align: right;
+      transition: color 250ms ease;
+    }
+
+    .card-status.is-open {
+      color: var(--color-open);
+    }
+
+    .card-status.is-closed {
+      color: var(--color-closed);
     }
 
     .card-actions {
@@ -148,56 +478,182 @@
       font: inherit;
       font-size: 14px;
       font-weight: 600;
-      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+      transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
     }
 
     .card-button-explore {
-      border: 1px solid #172033;
-      background: #172033;
-      color: #fff;
+      border: 1px solid var(--color-primary);
+      background: var(--color-primary);
+      color: var(--color-primary-text);
     }
 
     .card-button-route {
-      border: 1px solid #1d4ed8;
+      border: 1px solid var(--color-accent);
       background: transparent;
-      color: #1d4ed8;
+      color: var(--color-accent);
     }
 
     .card-button-explore:hover {
-      background: #26334a;
-      border-color: #26334a;
+      background: var(--color-primary-hover);
+      border-color: var(--color-primary-hover);
     }
 
     .card-button-route:hover {
-      background: #eff6ff;
+      background: var(--color-hover-accent);
+    }
+
+    .card-button:active {
+      transform: scale(0.98);
     }
 
     .card-button:focus-visible,
     .card-close:focus-visible {
-      outline: 3px solid #93c5fd;
+      outline: 3px solid var(--color-focus-outline);
       outline-offset: 2px;
     }
 
-    @media (max-width: 480px) {
+    @media (min-width: 481px) and (max-width: 800px) {
+      .map-panel {
+        left: 12px;
+        width: calc(100vw - 96px);
+        transform: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .find-me-control {
+        transition: opacity 250ms ease, transform 250ms ease, visibility 0s linear 250ms;
+      }
+
       .attraction-card {
         top: auto;
-        bottom: 12px;
-        right: 12px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        max-width: none;
+        max-height: calc(100vh - 112px);
+        max-height: min(70dvh, calc(100dvh - 112px));
+        padding: 20px max(20px, env(safe-area-inset-right, 0px))
+          calc(20px + env(safe-area-inset-bottom, 0px))
+          max(20px, env(safe-area-inset-left, 0px));
+        border-radius: 16px 16px 0 0;
+        transform: translateY(100%);
+      }
+
+      .attraction-card.is-visible {
+        transform: translateY(0);
+      }
+
+      body.has-attraction-card .find-me-control {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(8px);
+        pointer-events: none;
+      }
+
+      body:not(.has-attraction-card) .find-me-control {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        pointer-events: auto;
+        transition-delay: 0s;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .map-panel {
+        top: 12px;
         width: calc(100vw - 24px);
-        max-height: calc(100vh - 24px);
+        padding: 10px 58px 10px 10px;
+      }
+
+      .theme-toggle {
+        top: 12px;
+        right: 12px;
+      }
+
+      .find-me-control {
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        left: 12px;
+        max-width: calc(100vw - 24px);
       }
     }
 
     @media (prefers-reduced-motion: reduce) {
+      .leaflet-tile-pane .leaflet-layer,
+      .leaflet-tile,
+      .leaflet-marker-icon,
+      .map-panel,
+      .theme-toggle,
+      .find-me-control,
+      .find-me-button,
+      .location-status,
+      .search-input,
+      .filter-chip,
       .attraction-card,
+      .card-emoji,
+      .card-name,
+      .card-category,
+      .card-description,
+      .card-close,
+      .favorite-toggle,
+      .card-details,
+      .card-rating,
+      .card-status,
       .card-button {
-        transition: none;
+        transition: none !important;
+      }
+
+      .filter-chip:active,
+      .card-button:active,
+      .favorite-toggle.is-favorite {
+        transform: none;
       }
     }
   </style>
 </head>
 <body>
   <div id="map" aria-label="Карта достопримечательностей Астаны"></div>
+
+  <div class="map-panel" id="map-panel" aria-label="Поиск и фильтры достопримечательностей">
+    <input
+      class="search-input"
+      id="search-input"
+      type="search"
+      placeholder="Search places..."
+      aria-label="Поиск по названию"
+      autocomplete="off"
+    >
+    <div class="filter-chips" id="filter-chips" role="group" aria-label="Фильтры по категориям">
+      <button class="filter-chip is-active" type="button" data-filter="all" aria-pressed="true">All</button>
+      <button class="filter-chip" type="button" data-filter="attraction" aria-pressed="false">Attractions</button>
+      <button class="filter-chip" type="button" data-filter="food" aria-pressed="false">Food</button>
+      <button class="filter-chip" type="button" data-filter="park" aria-pressed="false">Parks</button>
+      <button class="filter-chip" type="button" data-filter="shopping" aria-pressed="false">Shopping</button>
+      <button class="filter-chip" type="button" data-filter="museum" aria-pressed="false">Museums</button>
+      <button class="filter-chip" type="button" data-filter="favorites" aria-pressed="false">❤️ Favorites</button>
+    </div>
+  </div>
+
+  <button
+    class="theme-toggle"
+    id="theme-toggle"
+    type="button"
+    aria-label="Включить тёмную тему"
+    aria-pressed="false"
+    title="Переключить тему"
+  >🌙</button>
+
+  <div class="find-me-control" id="find-me-control">
+    <div class="location-status" id="location-status" role="status" aria-live="polite"></div>
+    <button
+      class="find-me-button"
+      id="find-me-button"
+      type="button"
+      aria-busy="false"
+    >📍 Find me</button>
+  </div>
 
   <section
     class="attraction-card"
@@ -207,10 +663,15 @@
     aria-hidden="true"
   >
     <button class="card-close" id="close-button" type="button" aria-label="Закрыть карточку">&times;</button>
+    <button class="favorite-toggle" id="favorite-toggle" type="button" aria-label="Добавить в избранное" aria-pressed="false">♡</button>
     <div class="card-heading">
       <div class="card-emoji" id="card-emoji" aria-hidden="true"></div>
-      <h2 class="card-name" id="card-name"></h2>
+      <div class="card-title-group">
+        <h2 class="card-name" id="card-name"></h2>
+        <span class="card-category" id="card-category"></span>
+      </div>
     </div>
+    <p class="card-description" id="card-description"></p>
     <div class="card-details">
       <span class="card-rating" id="card-rating"></span>
       <span class="card-status" id="card-status"></span>
@@ -225,85 +686,593 @@
   <script>
     const map = L.map('map').setView([51.169392, 71.449074], 12);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    const LIGHT_TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    const DARK_TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    const tileLayerOptions = {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
       maxZoom: 19
-    }).addTo(map);
+    };
+
+    let currentTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    let tileLayer = L.tileLayer(
+      currentTheme === 'dark' ? DARK_TILE_URL : LIGHT_TILE_URL,
+      tileLayerOptions
+    ).addTo(map);
+    let pendingTileLayer = null;
+    let retiringTileLayer = null;
+    let tileRemovalTimeout = null;
+
+    function switchTileTheme(theme) {
+      if (pendingTileLayer) {
+        map.removeLayer(pendingTileLayer);
+        pendingTileLayer = null;
+      }
+
+      if (tileRemovalTimeout !== null) {
+        window.clearTimeout(tileRemovalTimeout);
+        tileRemovalTimeout = null;
+      }
+
+      if (retiringTileLayer && retiringTileLayer !== tileLayer && map.hasLayer(retiringTileLayer)) {
+        map.removeLayer(retiringTileLayer);
+      }
+      retiringTileLayer = null;
+
+      const previousLayer = tileLayer;
+      const nextLayer = L.tileLayer(
+        theme === 'dark' ? DARK_TILE_URL : LIGHT_TILE_URL,
+        { ...tileLayerOptions, opacity: 0 }
+      );
+
+      pendingTileLayer = nextLayer;
+
+      nextLayer.once('load', () => {
+        if (pendingTileLayer !== nextLayer) return;
+
+        pendingTileLayer = null;
+        nextLayer.setOpacity(1);
+        tileLayer = nextLayer;
+        retiringTileLayer = previousLayer;
+
+        const reducedMotion = window.matchMedia &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const transitionDuration = reducedMotion ? 0 : 400;
+
+        tileRemovalTimeout = window.setTimeout(() => {
+          if (retiringTileLayer === previousLayer && map.hasLayer(previousLayer)) {
+            map.removeLayer(previousLayer);
+            retiringTileLayer = null;
+          }
+          tileRemovalTimeout = null;
+        }, transitionDuration);
+      });
+
+      nextLayer.addTo(map);
+    }
+
+    const categories = {
+      attraction: {
+        label: 'Attraction',
+        color: '#2563eb'
+      },
+      food: {
+        label: 'Food',
+        color: '#f97316'
+      },
+      park: {
+        label: 'Park',
+        color: '#16a34a'
+      },
+      shopping: {
+        label: 'Shopping',
+        color: '#9333ea'
+      },
+      museum: {
+        label: 'Museum',
+        color: '#8b5e34'
+      }
+    };
+
+    const categoryStyles = document.createElement('style');
+    categoryStyles.textContent = Object.entries(categories)
+      .map(([categoryId, category]) => `.attraction-icon-${categoryId} { background-color: ${category.color}; }`)
+      .join('\n');
+    document.head.appendChild(categoryStyles);
 
     const attractions = [
       {
+        id: 'baiterek',
         name: 'Baiterek',
         coordinates: [51.1284, 71.4306],
         rating: 4.8,
-        closingTime: '22:00',
-        emoji: '🏛️'
+        openHour: 10,
+        closeHour: 22,
+        emoji: '🏛️',
+        category: 'attraction',
+        description: 'An iconic observation tower symbolizing the growth and future of Kazakhstan. Visitors can enjoy panoramic views of Astana from its upper level.'
       },
       {
+        id: 'khan-shatyr',
         name: 'Khan Shatyr',
         coordinates: [51.1325, 71.4066],
         rating: 4.6,
-        closingTime: '23:00',
-        emoji: '🎡'
+        openHour: 10,
+        closeHour: 22,
+        emoji: '🎡',
+        category: 'shopping',
+        description: 'A striking tent-shaped entertainment and shopping center designed by Norman Foster. It features shops, restaurants, and indoor attractions.'
       },
       {
+        id: 'nur-astana-mosque',
         name: 'Nur-Astana Mosque',
         coordinates: [51.1801, 71.4467],
         rating: 4.9,
-        closingTime: '20:00',
-        emoji: '🕌'
+        openHour: 9,
+        closeHour: 20,
+        emoji: '🕌',
+        category: 'attraction',
+        description: 'One of the largest mosques in Central Asia, known for its white marble facade and golden dome. Its spacious prayer hall is decorated with intricate patterns.'
       },
       {
+        id: 'palace-of-peace-and-reconciliation',
         name: 'Palace of Peace and Reconciliation',
         coordinates: [51.1279, 71.4283],
         rating: 4.7,
-        closingTime: '19:00',
-        emoji: '🔺'
+        openHour: 10,
+        closeHour: 19,
+        emoji: '🔺',
+        category: 'attraction',
+        description: 'A pyramid-shaped cultural venue designed by Norman Foster. It hosts exhibitions, events, and the Congress of Leaders of World and Traditional Religions.'
       },
       {
+        id: 'expo-nur-alem',
         name: 'EXPO Nur Alem',
-        coordinates: [51.0925, 71.4067],
+        coordinates: [51.0907, 71.4183],
         rating: 4.5,
-        closingTime: '21:00',
-        emoji: '🌐'
+        openHour: 10,
+        closeHour: 21,
+        emoji: '🌐',
+        category: 'museum',
+        description: 'A spherical museum built for the EXPO 2017 international exhibition. Its interactive exhibits explore energy, science, and future technologies.'
       },
       {
+        id: 'central-park',
         name: 'Central Park',
-        coordinates: [51.1300, 71.4450],
+        coordinates: [51.1434, 71.4216],
         rating: 4.4,
-        closingTime: '23:00',
-        emoji: '🌳'
+        openHour: 6,
+        closeHour: 23,
+        emoji: '🌳',
+        category: 'park',
+        description: 'A large riverside green space with walking paths, recreational areas, and seasonal activities. It is a popular place to relax and enjoy the outdoors.'
+      },
+      {
+        id: 'astana-opera',
+        name: 'Astana Opera',
+        coordinates: [51.1328, 71.4199],
+        rating: 4.8,
+        openHour: 10,
+        closeHour: 22,
+        emoji: '🎭',
+        category: 'attraction',
+        description: 'A grand opera house combining classical architectural influences with Kazakh design details. Its program includes opera, ballet, and concert performances.'
+      },
+      {
+        id: 'national-museum-of-kazakhstan',
+        name: 'National Museum of Kazakhstan',
+        coordinates: [51.0909, 71.3981],
+        rating: 4.7,
+        openHour: 10,
+        closeHour: 18,
+        emoji: '🏺',
+        category: 'museum',
+        description: 'A major museum presenting Kazakhstan’s history, culture, and contemporary art across several themed halls. Its collections include archaeological finds and national treasures.'
+      },
+      {
+        id: 'mega-silk-way',
+        name: 'Mega Silk Way',
+        coordinates: [51.0898, 71.4189],
+        rating: 4.6,
+        openHour: 10,
+        closeHour: 22,
+        emoji: '🛍️',
+        category: 'shopping',
+        description: 'A large modern shopping mall near the EXPO complex. It offers retail stores, restaurants, a cinema, and family entertainment.'
+      },
+      {
+        id: 'line-brew',
+        name: 'Line Brew',
+        coordinates: [51.1288, 71.4300],
+        rating: 4.5,
+        openHour: 12,
+        closeHour: 1,
+        emoji: '🍽️',
+        category: 'food',
+        description: 'A well-known restaurant serving steaks and European cuisine in a distinctive interior. It is a popular spot for dinner and special occasions.'
+      },
+      {
+        id: 'duman-entertainment-center',
+        name: 'Duman Entertainment Center',
+        coordinates: [51.1398, 71.4115],
+        rating: 4.3,
+        openHour: 10,
+        closeHour: 22,
+        emoji: '🐠',
+        category: 'attraction',
+        description: 'A family entertainment complex featuring an oceanarium and other attractions. Its underwater tunnel lets visitors view marine life from close range.'
+      },
+      {
+        id: 'presidential-park',
+        name: 'Presidential Park',
+        coordinates: [51.1058, 71.4720],
+        rating: 4.2,
+        openHour: 6,
+        closeHour: 22,
+        emoji: '🌿',
+        category: 'park',
+        description: 'A spacious landscaped park on the left bank of the Ishim River. Walking paths, open lawns, and views of the city make it a peaceful place for a stroll.'
       }
     ];
 
     const card = document.getElementById('attraction-card');
     const cardEmoji = document.getElementById('card-emoji');
     const cardName = document.getElementById('card-name');
+    const cardCategory = document.getElementById('card-category');
+    const cardDescription = document.getElementById('card-description');
     const cardRating = document.getElementById('card-rating');
     const cardStatus = document.getElementById('card-status');
     const exploreButton = document.getElementById('explore-button');
     const routeButton = document.getElementById('route-button');
     const closeButton = document.getElementById('close-button');
+    const favoriteToggle = document.getElementById('favorite-toggle');
+    const themeToggle = document.getElementById('theme-toggle');
+    const mapPanel = document.getElementById('map-panel');
+    const searchInput = document.getElementById('search-input');
+    const filterChips = document.getElementById('filter-chips');
+    const findMeControl = document.getElementById('find-me-control');
+    const findMeButton = document.getElementById('find-me-button');
+    const locationStatus = document.getElementById('location-status');
+
+    let locationStatusTimeout = null;
+    let locationRequestInProgress = false;
+
+    function showLocationStatus(message, duration = 7000) {
+      locationStatus.textContent = message;
+      locationStatus.classList.add('is-visible');
+
+      if (locationStatusTimeout !== null) {
+        window.clearTimeout(locationStatusTimeout);
+      }
+
+      if (duration > 0) {
+        locationStatusTimeout = window.setTimeout(() => {
+          locationStatus.classList.remove('is-visible');
+          locationStatusTimeout = null;
+        }, duration);
+      }
+    }
+
+    function setLocationRequestState(isPending) {
+      locationRequestInProgress = isPending;
+      findMeButton.disabled = isPending;
+      findMeButton.setAttribute('aria-busy', String(isPending));
+      findMeButton.textContent = isPending ? '📍 Finding…' : '📍 Find me';
+    }
+
+    function handleLocationError(error) {
+      setLocationRequestState(false);
+
+      if (!window.isSecureContext) {
+        showLocationStatus('Location access requires a secure context. Open this page over HTTPS or on localhost.');
+        return;
+      }
+
+      if (!error || typeof error.code !== 'number') {
+        showLocationStatus('Could not determine your location. Please try again.');
+        return;
+      }
+
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          showLocationStatus('Location access was denied or blocked. Allow location access in your browser settings and try again.');
+          break;
+        case error.POSITION_UNAVAILABLE:
+          showLocationStatus('Your location is currently unavailable. Check your device location settings and try again.');
+          break;
+        case error.TIMEOUT:
+          showLocationStatus('The location request timed out. Please try again.');
+          break;
+        default:
+          showLocationStatus('Could not determine your location. Please try again.');
+      }
+    }
+
+    findMeButton.addEventListener('click', () => {
+      if (locationRequestInProgress) return;
+
+      if (!window.isSecureContext) {
+        showLocationStatus('Location access requires a secure context. Open this page over HTTPS or on localhost.');
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        showLocationStatus('Location services are not available in this browser.');
+        return;
+      }
+
+      if (locationStatusTimeout !== null) {
+        window.clearTimeout(locationStatusTimeout);
+        locationStatusTimeout = null;
+      }
+
+      locationStatus.textContent = 'Finding your location…';
+      locationStatus.classList.add('is-visible');
+      setLocationRequestState(true);
+
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLocationRequestState(false);
+            const { latitude, longitude } = position.coords;
+
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+              showLocationStatus('Your device returned an invalid location. Please try again.');
+              return;
+            }
+
+            const targetZoom = Math.max(map.getZoom(), 15);
+            map.flyTo([latitude, longitude], targetZoom, {
+              animate: true,
+              duration: 1.5
+            });
+            showLocationStatus('Location found.', 3500);
+          },
+          handleLocationError,
+          {
+            enableHighAccuracy: true,
+            timeout: 12000,
+            maximumAge: 0
+          }
+        );
+      } catch (error) {
+        handleLocationError(error);
+      }
+    });
+
+    function updateThemeToggle() {
+      const isDark = currentTheme === 'dark';
+      themeToggle.textContent = isDark ? '☀️' : '🌙';
+      themeToggle.setAttribute('aria-pressed', String(isDark));
+      themeToggle.setAttribute(
+        'aria-label',
+        isDark ? 'Включить светлую тему' : 'Включить тёмную тему'
+      );
+      themeToggle.title = isDark ? 'Включить светлую тему' : 'Включить тёмную тему';
+    }
+
+    themeToggle.addEventListener('click', () => {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = currentTheme;
+      switchTileTheme(currentTheme);
+
+      try {
+        window.localStorage.setItem('astana-explorer-theme', currentTheme);
+      } catch (error) {
+        // Тема остаётся включённой до завершения текущей сессии.
+      }
+
+      updateThemeToggle();
+    });
+
+    updateThemeToggle();
 
     L.DomEvent.disableClickPropagation(card);
+    L.DomEvent.disableScrollPropagation(card);
+    L.DomEvent.disableClickPropagation(mapPanel);
+    L.DomEvent.disableScrollPropagation(mapPanel);
+    L.DomEvent.disableClickPropagation(findMeControl);
+    L.DomEvent.disableClickPropagation(themeToggle);
+
+    mapPanel.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+    });
+
+    findMeControl.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+    });
+
+    card.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+    });
+
+    themeToggle.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+    });
+
+    const attractionMarkers = L.featureGroup().addTo(map);
+    const markersById = new Map();
+    const markerRemovalTimers = new Map();
+    const visibleMarkerIds = new Set(attractions.map((attraction) => attraction.id));
+    const MARKER_FADE_DURATION = 350;
+
+    function getMarkerFadeDuration() {
+      const reducedMotion = window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      return reducedMotion ? 0 : MARKER_FADE_DURATION;
+    }
 
     let selectedAttraction = null;
     let selectedMarker = null;
+    let activeFilter = 'all';
+    let searchQuery = '';
+
+    const FAVORITES_STORAGE_KEY = 'astana-explorer-favorites';
+    const attractionIds = new Set(attractions.map((attraction) => attraction.id));
+    let favoriteIds = new Set();
+
+    try {
+      const savedFavorites = JSON.parse(
+        window.localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]'
+      );
+
+      if (Array.isArray(savedFavorites)) {
+        favoriteIds = new Set(
+          savedFavorites.filter((id) => typeof id === 'string' && attractionIds.has(id))
+        );
+      }
+    } catch (error) {
+      favoriteIds = new Set();
+    }
+
+    function saveFavorites() {
+      try {
+        window.localStorage.setItem(
+          FAVORITES_STORAGE_KEY,
+          JSON.stringify([...favoriteIds])
+        );
+      } catch (error) {
+        // Избранное продолжает работать в памяти до завершения текущей сессии.
+      }
+    }
+
+    function updateAttractionStatus(attraction) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const openMinutes = attraction.openHour * 60;
+      const closeMinutes = attraction.closeHour * 60;
+
+      const isOpen = openMinutes < closeMinutes
+        ? currentMinutes >= openMinutes && currentMinutes < closeMinutes
+        : openMinutes > closeMinutes
+          ? currentMinutes >= openMinutes || currentMinutes < closeMinutes
+          : true;
+
+      if (isOpen) {
+        cardStatus.textContent = `Open until ${String(attraction.closeHour).padStart(2, '0')}:00`;
+        cardStatus.classList.add('is-open');
+        cardStatus.classList.remove('is-closed');
+      } else {
+        cardStatus.textContent = `Closed · Opens at ${String(attraction.openHour).padStart(2, '0')}:00`;
+        cardStatus.classList.add('is-closed');
+        cardStatus.classList.remove('is-open');
+      }
+    }
+
+    function updateSelectedAttractionStatus() {
+      if (selectedAttraction) {
+        updateAttractionStatus(selectedAttraction);
+      }
+    }
+
+    function filterMarkers() {
+      attractions.forEach((attraction) => {
+        const marker = markersById.get(attraction.id);
+        if (!marker) return;
+
+        const matchesCategory = activeFilter === 'all'
+          || (activeFilter === 'favorites'
+            ? favoriteIds.has(attraction.id)
+            : attraction.category === activeFilter);
+        const matchesSearch = attraction.name.toLocaleLowerCase().includes(searchQuery);
+        const shouldShow = matchesCategory && matchesSearch;
+        const isOnMap = attractionMarkers.hasLayer(marker);
+
+        if (shouldShow) {
+          visibleMarkerIds.add(attraction.id);
+
+          const removalTimer = markerRemovalTimers.get(attraction.id);
+          if (removalTimer !== undefined) {
+            window.clearTimeout(removalTimer);
+            markerRemovalTimers.delete(attraction.id);
+          }
+
+          if (!isOnMap) {
+            marker.setOpacity(0);
+            attractionMarkers.addLayer(marker);
+
+            const element = marker.getElement();
+            if (element) {
+              element.style.pointerEvents = '';
+            }
+
+            window.requestAnimationFrame(() => {
+              if (visibleMarkerIds.has(attraction.id) && attractionMarkers.hasLayer(marker)) {
+                marker.setOpacity(1);
+              }
+            });
+          } else {
+            marker.setOpacity(1);
+
+            const element = marker.getElement();
+            if (element) {
+              element.style.pointerEvents = '';
+            }
+          }
+        } else {
+          visibleMarkerIds.delete(attraction.id);
+
+          if (!isOnMap || markerRemovalTimers.has(attraction.id)) {
+            return;
+          }
+
+          const element = marker.getElement();
+          if (element) {
+            element.style.pointerEvents = 'none';
+          }
+
+          marker.setOpacity(0);
+
+          const fadeDuration = getMarkerFadeDuration();
+          const removalTimer = window.setTimeout(() => {
+            markerRemovalTimers.delete(attraction.id);
+
+            if (!visibleMarkerIds.has(attraction.id) && attractionMarkers.hasLayer(marker)) {
+              attractionMarkers.removeLayer(marker);
+            }
+          }, fadeDuration);
+
+          markerRemovalTimers.set(attraction.id, removalTimer);
+        }
+      });
+
+      if (selectedAttraction && !visibleMarkerIds.has(selectedAttraction.id)) {
+        hideAttraction();
+      }
+    }
 
     function showAttraction(attraction, marker) {
       selectedAttraction = attraction;
       selectedMarker = marker;
 
+      const category = categories[attraction.category];
+      const isFavorite = favoriteIds.has(attraction.id);
+
       cardEmoji.textContent = attraction.emoji;
       cardName.textContent = attraction.name;
+      cardCategory.textContent = category.label;
+      cardCategory.style.color = category.color;
+      cardDescription.textContent = attraction.description;
+      cardDescription.style.borderLeftColor = category.color;
       cardRating.textContent = `⭐ ${attraction.rating.toFixed(1)}`;
-      cardStatus.textContent = `Open until ${attraction.closingTime}`;
+      updateAttractionStatus(attraction);
+      favoriteToggle.classList.toggle('is-favorite', isFavorite);
+      favoriteToggle.textContent = isFavorite ? '♥' : '♡';
+      favoriteToggle.setAttribute('aria-pressed', String(isFavorite));
+      favoriteToggle.setAttribute(
+        'aria-label',
+        isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'
+      );
       card.setAttribute('aria-hidden', 'false');
       card.classList.add('is-visible');
+      document.body.classList.add('has-attraction-card');
     }
 
     function hideAttraction() {
       card.classList.remove('is-visible');
       card.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('has-attraction-card');
       selectedAttraction = null;
       selectedMarker = null;
     }
@@ -311,7 +1280,7 @@
     attractions.forEach((attraction) => {
       const icon = L.divIcon({
         html: attraction.emoji,
-        className: 'attraction-icon',
+        className: `attraction-icon attraction-icon-${attraction.category}`,
         iconSize: [44, 44],
         iconAnchor: [22, 22]
       });
@@ -321,11 +1290,48 @@
         title: attraction.name,
         alt: attraction.name,
         keyboard: true
-      }).addTo(map);
+      });
+
+      markersById.set(attraction.id, marker);
+      attractionMarkers.addLayer(marker);
 
       marker.on('click', () => {
         showAttraction(attraction, marker);
       });
+    });
+
+    filterChips.addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-filter]');
+      if (!chip) return;
+
+      activeFilter = chip.dataset.filter;
+      filterChips.querySelectorAll('[data-filter]').forEach((filterChip) => {
+        const isActive = filterChip === chip;
+        filterChip.classList.toggle('is-active', isActive);
+        filterChip.setAttribute('aria-pressed', String(isActive));
+      });
+
+      filterMarkers();
+    });
+
+    searchInput.addEventListener('input', () => {
+      searchQuery = searchInput.value.trim().toLocaleLowerCase();
+      filterMarkers();
+    });
+
+    favoriteToggle.addEventListener('click', () => {
+      if (!selectedAttraction) return;
+
+      const attractionId = selectedAttraction.id;
+      if (favoriteIds.has(attractionId)) {
+        favoriteIds.delete(attractionId);
+      } else {
+        favoriteIds.add(attractionId);
+      }
+
+      saveFavorites();
+      showAttraction(selectedAttraction, selectedMarker);
+      filterMarkers();
     });
 
     map.on('click', hideAttraction);
@@ -335,13 +1341,12 @@
       if (event.key === 'Escape' && card.classList.contains('is-visible')) {
         hideAttraction();
       }
-    });
+    }, true);
 
     exploreButton.addEventListener('click', () => {
       if (!selectedAttraction || !selectedMarker) return;
 
       map.flyTo(selectedAttraction.coordinates, 16);
-      selectedMarker.openPopup();
     });
 
     routeButton.addEventListener('click', () => {
@@ -351,6 +1356,8 @@
       const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
       window.open(routeUrl, '_blank', 'noopener,noreferrer');
     });
+
+    window.setInterval(updateSelectedAttractionStatus, 60000);
 
     window.addEventListener('resize', () => {
       map.invalidateSize();
