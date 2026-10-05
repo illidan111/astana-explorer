@@ -1,10 +1,13 @@
 /*
  * Curated starter catalogue, reviewed 2026-10-05.
  * No live schedules, prices, ratings or opening status are implied.
- * Most coordinates come from the embedded maps at Visit Astana:
- * https://visitastana.kz/ru/map/ and the linked place pages below.
+ * Coordinates were checked against published venue points on 2026-10-05.
+ * coordinateSourceUrl records the map source independently of the place's
+ * information page. Visit Astana coordinates are its embedded ymaps.Placemark
+ * / coords values. Mosque coordinates are the Yandex business point reached
+ * from CityPASS: https://astana.citypass.kz/ru/attractions/mechet-nur-astana .
  * Map points identify the venue or park, not an accessible entrance.
- * Entries marked demo use approximate coordinates or fictional event ideas.
+ * Only events are fictional demos; venueId identifies their real host point.
  */
 const categories = {
   attraction: { label: 'Достопримечательности', color: '#087e8b', icon: '◆' },
@@ -21,6 +24,7 @@ const attractions = [
     name: 'Байтерек',
     aliases: ['Baiterek', 'Bayterek', 'Бәйтерек'],
     coordinates: [51.128314, 71.430519],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'attraction',
     emoji: '🏛️',
     description: 'Знакомство с Астаной можно начать с её узнаваемого символа на бульваре Нуржол. Монумент связан с образом Дерева жизни, а со смотровой площадки открывается панорама города.',
@@ -36,6 +40,7 @@ const attractions = [
     name: 'Хан Шатыр',
     aliases: ['Khan Shatyr', 'Хан-Шатыр', 'Ханшатыр'],
     coordinates: [51.132599, 71.403817],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'shopping',
     emoji: '🎪',
     description: 'Торгово-развлекательный центр под огромным шатром. Вариант для прогулки под крышей, магазинов и отдыха с семьёй; рядом можно продолжить знакомство с архитектурой левого берега.',
@@ -50,23 +55,24 @@ const attractions = [
     id: 'nur-astana-mosque',
     name: 'Мечеть Абу Насыр аль-Фараби',
     aliases: ['Нур-Астана', 'Нур Астана', 'Nur-Astana Mosque', 'Abu Nasr Al-Farabi'],
-    // Approximate venue point. Current name/address verified at the official mosque site.
-    coordinates: [51.1266, 71.4157],
+    coordinates: [51.126654, 71.415796],
+    coordinateSourceUrl: 'https://yandex.kz/maps/org/abu_nasyr_al_farabi_meshiti/1089167953/',
     category: 'attraction',
     emoji: '🕌',
-    description: 'Мечеть, ранее известная как «Нур-Астана»: золотой купол, четыре минарета и внутренний двор с фонтанами. Подойдёт для знакомства с архитектурой города. Демокарточка: положение маркера приблизительное; вход и условия посещения уточните у мечети.',
+    description: 'Мечеть, ранее известная как «Нур-Астана»: золотой купол, четыре минарета и внутренний двор с фонтанами. Подойдёт для знакомства с архитектурой города. Вход и условия посещения уточните у мечети.',
     kind: 'place',
     area: 'Проспект Кабанбай батыра',
-    tags: ['Архитектура', 'История', 'Приблизительная точка'],
+    tags: ['Архитектура', 'История', 'Мечеть'],
     sourceUrl: 'https://ummet.kz/ru/o-mecheti.html',
     sourceLabel: 'Официальный сайт мечети',
-    demo: true
+    demo: false
   },
   {
     id: 'palace-of-peace-and-reconciliation',
     name: 'Дворец мира и согласия',
     aliases: ['Palace of Peace and Reconciliation', 'Пирамида'],
     coordinates: [51.123131, 71.463496],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'attraction',
     emoji: '🔺',
     description: 'Стеклянная пирамида по проекту Нормана Фостера — один из архитектурных ориентиров Астаны. Внутри расположены залы для выставок и мероприятий, а вокруг — пространство для прогулки.',
@@ -82,6 +88,7 @@ const attractions = [
     name: 'Сфера Нур Алем · EXPO',
     aliases: ['EXPO Nur Alem', 'Нур-Алем', 'Экспо', 'Alem.ai', 'AI Alem'],
     coordinates: [51.0892, 71.416047],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'culture',
     emoji: '🌐',
     description: 'Сферическое здание на территории EXPO, известное как «Нур Алем» и построенное к выставке EXPO-2017. Включите эту точку в архитектурную прогулку по этой части города. Доступ внутрь и программу мероприятий уточняйте отдельно.',
@@ -97,6 +104,7 @@ const attractions = [
     name: 'Центральный парк',
     aliases: ['Central Park', 'Центральный городской парк'],
     coordinates: [51.152859, 71.41902],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/tsentralnyy-park/',
     category: 'park',
     emoji: '🌳',
     description: 'Зелёная территория у реки Есиль с прогулочными аллеями, велосипедными дорожками и местами для отдыха. Хороший вариант, если хочется больше воздуха, деревьев и неспешной прогулки.',
@@ -112,6 +120,7 @@ const attractions = [
     name: 'Астана Опера',
     aliases: ['Astana Opera', 'Оперный театр'],
     coordinates: [51.135622, 71.410827],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/teatr-opery-i-baleta-astana-opera/',
     category: 'culture',
     emoji: '🎭',
     description: 'Театр оперы и балета с классической архитектурой и казахскими мотивами в оформлении. Можно включить здание в архитектурную прогулку или выбрать постановку в официальной афише театра.',
@@ -127,6 +136,7 @@ const attractions = [
     name: 'Национальный музей Казахстана',
     aliases: ['National Museum of Kazakhstan', 'Национальный музей Республики Казахстан'],
     coordinates: [51.118105, 71.469506],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'culture',
     emoji: '🏺',
     description: 'Музей для знакомства с историей и культурой Казахстана: от археологических находок до искусства и современной истории. Выберите интересующие залы и проверьте действующие выставки на сайте музея.',
@@ -142,6 +152,7 @@ const attractions = [
     name: 'MEGA Silk Way',
     aliases: ['Мега', 'Мега Силк Вей'],
     coordinates: [51.089234, 71.407349],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/mega-silk-way/',
     category: 'shopping',
     emoji: '🛍️',
     description: 'Торговый центр рядом с EXPO: магазины, рестораны, кинотеатр и семейные развлечения. Удобная точка для отдыха под крышей после прогулки по этой части города.',
@@ -156,23 +167,24 @@ const attractions = [
     id: 'line-brew',
     name: 'Line Brew',
     aliases: ['Лайн Брю', 'Лайн Брев', 'Ресторан Line Brew'],
-    // Approximate Kenesary venue point; do not present as a precise entrance.
-    coordinates: [51.1637, 71.4159],
+    coordinates: [51.163658, 71.416047],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/where-to-eat/line-brew6199/',
     category: 'food',
     emoji: '🍽️',
-    description: 'Ресторан европейской кухни со стейками и интерьером в средневековом стиле. Демокарточка филиала на Кенесары: положение маркера приблизительное. Меню, вход и условия бронирования проверьте на сайте ресторана.',
+    description: 'Ресторан европейской кухни со стейками и интерьером в средневековом стиле. На карте отмечен филиал на улице Кенесары, 20. Меню и условия бронирования проверьте на сайте ресторана.',
     kind: 'place',
     area: 'Улица Кенесары',
-    tags: ['Ресторан', 'Европейская кухня', 'Приблизительная точка'],
+    tags: ['Ресторан', 'Европейская кухня', 'Стейки'],
     sourceUrl: 'https://line-group.kz/line_brew',
     sourceLabel: 'Официальный сайт Line Group',
-    demo: true
+    demo: false
   },
   {
     id: 'duman-entertainment-center',
     name: 'Океанариум Ailand',
     aliases: ['Duman Entertainment Center', 'Думан', 'Айленд'],
     coordinates: [51.147724, 71.417309],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/okeanarium-ailand/',
     category: 'attraction',
     emoji: '🐠',
     description: 'Подводный мир комплекса Ailand, известного ранее как «Думан». Здесь можно увидеть морских обитателей и пройти через прозрачный тоннель большого аквариума. Вариант для семейной прогулки под крышей.',
@@ -188,6 +200,7 @@ const attractions = [
     name: 'Президентский парк',
     aliases: ['Presidential Park'],
     coordinates: [51.123894, 71.459161],
+    coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/prezidentskiy-park/',
     category: 'park',
     emoji: '🌿',
     description: 'Просторный парк вокруг Дворца мира и согласия. Прогулочные дорожки и открытые пространства позволяют совместить спокойный отдых на воздухе с осмотром одной из главных архитектурных достопримечательностей города.',
@@ -200,6 +213,7 @@ const attractions = [
   },
   {
     id: 'demo-chamber-evening',
+    venueId: 'astana-opera',
     name: 'Вечер камерной музыки',
     aliases: ['Концерт', 'Музыка', 'Астана Опера'],
     coordinates: [51.135622, 71.410827],
@@ -214,6 +228,7 @@ const attractions = [
   },
   {
     id: 'demo-city-exhibition',
+    venueId: 'national-museum-of-kazakhstan',
     name: 'Город в деталях',
     aliases: ['Выставка', 'Фотография', 'Национальный музей'],
     coordinates: [51.118105, 71.469506],
@@ -228,6 +243,7 @@ const attractions = [
   },
   {
     id: 'demo-park-sketching',
+    venueId: 'central-park',
     name: 'Прогулка со скетчбуком',
     aliases: ['Мастер-класс', 'Рисование', 'Центральный парк'],
     coordinates: [51.152859, 71.41902],

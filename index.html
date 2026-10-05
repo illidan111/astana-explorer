@@ -20,7 +20,6 @@
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="vendor/leaflet.markercluster/MarkerCluster.css">
   <link rel="stylesheet" href="styles.css">
-  <script defer src="vendor/leaflet/leaflet.js"></script>
   <script defer src="data.js"></script>
   <script defer src="app.js"></script>
 </head>
@@ -69,24 +68,27 @@
     <div class="filter-chips" id="filter-chips" role="group" aria-label="Категории мест и событий"></div>
   </section>
   <main class="workspace">
+    <p class="sr-only" id="results-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    <p class="sr-only" id="map-announcement" role="status" aria-live="polite"></p>
     <section class="sidebar" id="list-view" aria-label="Места и события">
       <div class="sidebar-intro">
         <p class="eyebrow">Ваш маленький путеводитель</p>
         <h1>Откройте<br> свою <em>Астану.</em></h1>
-        <p class="intro-copy">Знакомые улицы. Новые впечатления.<br>Найдите место для следующей истории.</p>
+        <p class="intro-copy">Места и идеи событий на карте города.<br>Выберите категорию или начните с поиска.</p>
       </div>
       <div class="results-bar">
-        <p class="places-counter" id="places-counter" role="status" aria-live="polite"></p>
+        <p class="places-counter" id="places-counter"></p>
         <label class="sr-only" for="sort-select">Порядок результатов</label>
         <select class="sort-select" id="sort-select"><option value="curated">Наша подборка</option><option value="name">По названию</option></select>
       </div>
       <div class="active-summary" id="active-summary" hidden><span id="active-summary-text"></span><button class="link-button" id="reset-filters">Сбросить всё</button></div>
+      <p class="list-map-status" id="list-map-status" hidden></p>
       <ul class="attraction-list" id="attraction-list"></ul>
       <footer class="sidebar-footer"><svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg><button id="about-button">О подборке и демонстрационных событиях</button></footer>
     </section>
     <section class="map-region" aria-label="Карта Астаны">
       <div id="map" role="region" aria-label="Интерактивная карта. Стрелки — перемещение, плюс и минус — масштаб."></div>
-      <div class="map-label"><svg class="icon" aria-hidden="true"><use href="#icon-attraction"/></svg><div><strong>Астана</strong><span>Взгляните на город по-новому</span></div></div>
+      <div class="map-label"><svg class="icon" aria-hidden="true"><use href="#icon-attraction"/></svg><div><strong>Астана</strong><span>Места и события на карте</span></div></div>
       <div class="map-controls" aria-label="Управление картой">
         <button class="icon-button" id="fit-map" aria-label="Показать все найденные места" title="Показать все найденные места"><svg class="icon" aria-hidden="true"><use href="#icon-fit"/></svg></button>
         <button class="icon-button" id="find-me-button" aria-label="Моё местоположение" aria-busy="false" title="Моё местоположение"><svg class="icon" aria-hidden="true"><use href="#icon-locate"/></svg></button>
@@ -94,7 +96,7 @@
         <button class="icon-button" id="zoom-out" aria-label="Отдалить карту" title="Отдалить карту"><svg class="icon" aria-hidden="true"><use href="#icon-minus"/></svg></button>
       </div>
       <div class="map-bottom">
-        <div class="map-status" id="map-status" role="status" hidden><span id="map-status-text"></span> <button id="retry-map" hidden>Повторить</button></div>
+        <div class="map-status" id="map-status" hidden><span id="map-status-text"></span> <button id="retry-map" hidden>Повторить</button></div>
         <div class="map-count"><span class="dot"></span><span id="map-count-text"></span><button id="map-about-button" aria-label="О данных на карте">О данных</button></div>
       </div>
       <div class="map-empty" id="map-empty" hidden><strong>Здесь пока ничего нет</strong><p id="map-empty-text">Попробуйте другое название или категорию.</p><button class="secondary-button" id="map-reset-filters">Сбросить фильтры</button></div>
@@ -105,7 +107,7 @@
     </nav>
   </main>
   <dialog class="attraction-card" id="attraction-card" aria-labelledby="card-name" aria-describedby="card-description">
-    <button class="icon-button card-close" id="close-button" aria-label="Закрыть карточку" autofocus><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
+    <div class="dialog-toolbar"><button class="icon-button card-close" id="close-button" aria-label="Закрыть карточку" autofocus><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div>
     <div class="card-art" id="card-art" aria-hidden="true"></div>
     <div class="card-body">
       <span class="card-category" id="card-category"></span>
@@ -123,13 +125,15 @@
     </div>
   </dialog>
   <dialog class="info-dialog" id="info-dialog" aria-labelledby="info-title">
-    <button class="icon-button" id="info-close" aria-label="Закрыть информацию" autofocus><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
+    <div class="dialog-toolbar"><button class="icon-button" id="info-close" aria-label="Закрыть информацию" autofocus><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button></div>
+    <div class="info-body">
     <p class="eyebrow">О проекте</p>
     <h2 id="info-title">Город, который хочется открывать</h2>
     <p>Astana Explorer помогает найти место для прогулки, знакомства с архитектурой или встречи с друзьями. Сохраните понравившееся — подборка останется в этом браузере.</p>
-    <p>Места собраны вручную. В карточках есть ссылки на источники; непроверенные точки отмечены как примеры. Часы работы, стоимость и доступность нужно уточнять у площадки перед посещением.</p>
+    <p>Места собраны вручную, координаты сверены с опубликованными картами. Маркеры обозначают объекты, а не точные входы. В карточках есть ссылки на источники; часы работы, стоимость и доступность нужно уточнять у площадки перед посещением.</p>
     <p><strong>События — демонстрационные идеи, а не действующая афиша.</strong> У них нет назначенных дат и продажи билетов. Для актуальной афиши потребуется подключить источник событий.</p>
     <p>Карта загружается из OpenStreetMap; тёмная тема меняет её оформление в браузере. Если подложка недоступна, поиск, карточки и избранное продолжают работать.</p>
+    </div>
   </dialog>
   <div class="toast" id="location-status" role="status" aria-live="polite" hidden></div>
   <noscript><div class="noscript">Для интерактивной карты нужен JavaScript. Включите его в браузере и обновите страницу.</div></noscript>

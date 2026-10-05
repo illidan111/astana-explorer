@@ -39,13 +39,15 @@
   let tileLayer = null;
   let tileRevision = 0;
   let tileTimeout = null;
-  let selectionRevision = 0;
   let toastTimeout = null;
   let userMarker = null;
   let accuracyCircle = null;
   let locationRequestInProgress = false;
   let locationTimeout = null;
   let locationRevision = 0;
+  let mapInitializing = false;
+  let resultsTimeout = null;
+  let mapLoadAttempt = 0;
 
   try {
     const saved = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
@@ -157,6 +159,16 @@
   function renderAttractionList(filtered) {
     // Reuse buttons so selection and favorite changes preserve keyboard focus.
     const focused = document.activeElement;
+    const scrollTop = attractionList.scrollTop;
+    const previousItems = [...attractionList.children];
+    const nextItems = filtered.map((place) => listItemsById.get(place.id));
+    const sameItems = previousItems.length === nextItems.length
+      && previousItems.every((item, index) => item === nextItems[index]);
+    if (sameItems && filtered.length) {
+      highlightSelection();
+      return;
+    }
+    const focusedIndex = previousItems.findIndex((item) => item.contains(focused));
     const fragment = document.createDocumentFragment();
     filtered.forEach((place) => {
       const item = listItemsById.get(place.id);
@@ -181,20 +193,30 @@
       fragment.append(item);
     }
     attractionList.replaceChildren(fragment);
+    attractionList.scrollTop = scrollTop;
     if (focused instanceof HTMLElement && attractionList.contains(focused)) focused.focus({ preventScroll: true });
     else if (focused?.classList.contains('list-favorite')) {
-      const fallback = attractionList.querySelector('button') || favoritesButton;
+      const nearbyItem = attractionList.children[Math.min(focusedIndex, attractionList.children.length - 1)];
+      const fallback = nearbyItem?.querySelector('.list-favorite, button') || favoritesButton;
       fallback.focus({ preventScroll: true });
     }
   }
 
   function filterMarkers({ fit = false } = {}) {
-    selectionRevision += 1;
     const filtered = getFilteredAttractions();
     const visibleIds = new Set(filtered.map((place) => place.id));
     byId('places-counter').textContent = `${favoritesOnly ? 'Избранное' : 'Найдено'}: ${filtered.length}`;
     byId('map-count-text').textContent = `${filtered.length} из ${attractions.length} мест и событий`;
     byId('mobile-count').textContent = filtered.length;
+    clearTimeout(resultsTimeout);
+    resultsTimeout = setTimeout(() => {
+      byId('results-status').textContent = [
+        `Найдено объектов: ${filtered.length}.`,
+        activeFilter !== 'all' ? `Категория: ${categories[activeFilter].label}.` : '',
+        favoritesOnly ? 'Только избранное.' : '',
+        !filtered.length ? 'Измените запрос или сбросьте фильтры.' : ''
+      ].filter(Boolean).join(' ');
+    }, 200);
     byId('map-empty').hidden = filtered.length > 0;
     byId('map-empty-text').textContent = favoritesOnly && !favoriteIds.size
       ? 'Сохраните понравившиеся места с помощью закладки.'
@@ -217,6 +239,7 @@
     });
     if (selectedAttraction && !visibleIds.has(selectedAttraction.id) && !card.open) clearSelection();
     renderAttractionList(filtered);
+    if (fit) attractionList.scrollTop = 0;
     updateFavoriteButtons();
     if (fit && filtered.length) fitResults();
   }
@@ -239,7 +262,9 @@
     if (!card.open) showLocationStatus(persisted
       ? (added ? 'Сохранено в избранном' : 'Удалено из избранного')
       : 'Сохранено только на время сеанса: хранилище браузера недоступно.');
-    else if (!persisted) byId('card-notice').textContent += ' Избранное доступно только на время этого сеанса: хранилище браузера недоступно.';
+    else if (!persisted && !byId('card-notice').textContent.includes('хранилище браузера недоступно')) {
+      byId('card-notice').textContent += ' Избранное доступно только на время этого сеанса: хранилище браузера недоступно.';
+    }
   }
 
   function clearSelection() {
@@ -256,7 +281,6 @@
   }
 
   function showAttraction(place, trigger) {
-    selectionRevision += 1;
     clearSelection();
     selectedAttraction = place;
     selectedMarker = markersById.get(place.id);
@@ -286,8 +310,9 @@
       byId('card-source-label').textContent = place.sourceLabel || 'Источник';
     } else source.removeAttribute('href');
     // Approximate/demo locations open a name search, rather than routing to an invented entrance.
+    const venue = placesById.get(place.venueId);
     byId('route-button').href = place.demo
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((place.kind === 'event' ? place.area.split(' · ')[0] : place.name) + ', Астана')}`
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((venue?.name || place.name) + ', Астана')}`
       : `https://www.google.com/maps/dir/?api=1&destination=${place.coordinates.join(',')}`;
     byId('route-label').textContent = place.demo ? 'Найти площадку в Google Maps' : 'Маршрут в Google Maps';
     updateFavoriteButtons();
@@ -309,10 +334,13 @@
     const filtered = getFilteredAttractions();
     const points = (filtered.length ? filtered : attractions).map((place) => place.coordinates);
     map.stop();
+    const { x: width, y: height } = map.getSize();
+    // The map can be very short beside a phone keyboard or in landscape.
+    // Reserve space for controls without consuming the entire fit viewport.
     map.fitBounds(points, {
-      paddingTopLeft: mobile.matches ? [48, 78] : [70, 72],
-      paddingBottomRight: mobile.matches ? [64, 120] : [70, 48],
-      maxZoom: 15, animate: !reducedMotion.matches
+      paddingTopLeft: [Math.min(70, width * .15), Math.min(100, height * .3)],
+      paddingBottomRight: [Math.min(70, width * .2), Math.min(48, height * .2)],
+      maxZoom: 15, animate: false
     });
   }
 
@@ -328,24 +356,27 @@
       filterMarkers();
     }
     setMobileView('map');
-    const revision = ++selectionRevision;
     map.invalidateSize({ pan: false });
-    const show = () => {
-      if (revision !== selectionRevision || !attractionMarkers.hasLayer(marker)) return;
-      marker.openTooltip();
-      highlightSelection();
-    };
-    // Establish the desired view before expansion; changing zoom afterwards would
-    // collapse spiderfied markers when a place and an event share coordinates.
+    map.stop();
+    attractionMarkers.unspiderfy?.();
+    // Expand coincident points synchronously. zoomToShowLayer keeps private
+    // moveend handlers that can reference a removed marker after a fast search.
     map.setView(place.coordinates, Math.max(16, map.getZoom()), { animate: false });
-    if (attractionMarkers.zoomToShowLayer) attractionMarkers.zoomToShowLayer(marker, show);
-    else show();
+    const parent = attractionMarkers.getVisibleParent?.(marker);
+    if (parent && parent !== marker) parent.spiderfy();
+    marker.openTooltip();
+    highlightSelection();
   }
 
   function setMapStatus(message, canRetry = false) {
     byId('map-status-text').textContent = message;
     byId('map-status').hidden = !message;
     byId('retry-map').hidden = !canRetry;
+    byId('list-map-status').textContent = map
+      ? 'Подложка карты недоступна. Можно продолжить поиск в списке.'
+      : 'Карта не загрузилась. Поиск, карточки и избранное работают.';
+    byId('list-map-status').hidden = !message || !canRetry;
+    byId('map-announcement').textContent = message;
   }
 
   function loadMapTiles() {
@@ -364,7 +395,12 @@
       if (revision !== tileRevision) return;
       setMapStatus('Подложка карты недоступна. Места, поиск и избранное работают; попробуйте загрузить карту снова.', true);
     };
-    tileLayer.on('loading', () => { loaded = 0; failed = 0; });
+    tileLayer.on('loading', () => {
+      loaded = 0;
+      failed = 0;
+      clearTimeout(tileTimeout);
+      tileTimeout = setTimeout(unavailable, 10000);
+    });
     tileLayer.on('tileload', () => { loaded += 1; });
     tileLayer.on('tileerror', () => { failed += 1; unavailable(); });
     tileLayer.on('load', () => {
@@ -379,7 +415,7 @@
 
   function initializeMap() {
     if (!window.L) {
-      setMapStatus('Не удалось загрузить карту. Откройте список: поиск, карточки и избранное доступны.');
+      setMapStatus('Не удалось загрузить карту. Поиск, список и избранное доступны. Повторите загрузку карты.', true);
       byId('map').setAttribute('aria-label', 'Карта недоступна');
       document.querySelectorAll('.map-controls button').forEach((button) => { button.disabled = true; });
       byId('explore-button').disabled = true;
@@ -387,13 +423,13 @@
       return;
     }
     map = L.map('map', { zoomControl: false, minZoom: 3, maxZoom: 19, zoomSnap: .5,
-      zoomAnimation: !reducedMotion.matches, fadeAnimation: !reducedMotion.matches,
+      zoomAnimation: false, fadeAnimation: !reducedMotion.matches,
       markerZoomAnimation: !reducedMotion.matches
     }).setView([51.128, 71.434], 13);
     map.attributionControl.setPrefix(false);
     attractionMarkers = L.markerClusterGroup ? L.markerClusterGroup({
       maxClusterRadius: 42, showCoverageOnHover: false,
-      animate: !reducedMotion.matches, spiderfyOnMaxZoom: true,
+      animate: false, spiderfyOnMaxZoom: true,
       iconCreateFunction(cluster) {
         const count = cluster.getChildCount();
         return L.divIcon({
@@ -426,7 +462,13 @@
       markersById.set(place.id, marker);
       attractionMarkers.addLayer(marker);
     });
-    attractionMarkers.on('animationend', highlightSelection);
+    const labelClusters = () => {
+      byId('map').querySelectorAll('.custom-marker-cluster').forEach((element) => {
+        element.setAttribute('aria-label', `Объектов: ${element.textContent}. Нажмите, чтобы раскрыть`);
+      });
+    };
+    attractionMarkers.on('animationend', () => { highlightSelection(); labelClusters(); });
+    map.on('layeradd zoomend', labelClusters);
     fitResults();
     loadMapTiles();
     map.on('zoomend', () => {
@@ -434,8 +476,9 @@
       byId('zoom-out').disabled = map.getZoom() <= map.getMinZoom();
     });
     byId('map').addEventListener('keydown', (event) => {
-      if (event.key === ' ' && event.target.matches('.leaflet-marker-icon[role="button"]')) {
+      if ([' ', 'Enter'].includes(event.key) && event.target.matches('.leaflet-marker-icon[role="button"]')) {
         event.preventDefault();
+        event.stopPropagation();
         event.target.click();
       }
     });
@@ -473,20 +516,16 @@
 
   buildFilters();
   attractions.forEach((place) => listItemsById.set(place.id, buildListItem(place)));
-  // Only load the plugin after Leaflet succeeds. Both the missing-library and
-  // missing-plugin cases retain a usable catalogue without an uncaught L error.
-  if (window.L) {
-    try { await import('./vendor/leaflet.markercluster/leaflet.markercluster.js'); }
-    catch { /* Individual markers remain available without clustering. */ }
-  }
-  initializeMap();
+  // The catalogue and event handlers are ready before optional map resources.
+  // Slow map loading must never swallow search, theme or category actions.
+  searchQuery = normalize(searchInput.value);
   filterMarkers();
   updateThemeToggle();
 
   filterChips.addEventListener('click', (event) => {
     const chip = event.target.closest('[data-filter]');
     if (!chip) return;
-    activeFilter = chip.dataset.filter;
+    activeFilter = activeFilter === chip.dataset.filter ? 'all' : chip.dataset.filter;
     filterMarkers({ fit: true });
     chip.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion.matches ? 'instant' : 'smooth' });
   });
@@ -564,8 +603,9 @@
   byId('fit-map').addEventListener('click', fitResults);
   byId('zoom-in').addEventListener('click', () => map?.zoomIn());
   byId('zoom-out').addEventListener('click', () => map?.zoomOut());
-  byId('retry-map').addEventListener('click', loadMapTiles);
-  window.addEventListener('online', () => { if (!byId('map-status').hidden) loadMapTiles(); });
+  const retryMap = () => map ? loadMapTiles() : prepareMap();
+  byId('retry-map').addEventListener('click', retryMap);
+  window.addEventListener('online', () => { if (!byId('map-status').hidden) retryMap(); });
 
   byId('theme-toggle').addEventListener('click', () => {
     currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -651,4 +691,39 @@
       }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
     } catch (error) { handleLocationError(error); }
   });
+
+  async function loadMapLibrary(url) {
+    let timeout;
+    try {
+      return await Promise.race([
+        import(url).then(() => true, () => false),
+        new Promise((resolve) => { timeout = setTimeout(() => resolve(false), 4000); })
+      ]);
+    } finally { clearTimeout(timeout); }
+  }
+
+  async function prepareMap() {
+    if (map || mapInitializing) return;
+    mapInitializing = true;
+    const retrySuffix = mapLoadAttempt++ ? `?retry=${mapLoadAttempt}` : '';
+    byId('map').setAttribute('aria-busy', 'true');
+    setMapStatus('Загружаем карту…');
+    document.querySelectorAll('.map-controls button').forEach((button) => { button.disabled = true; });
+    byId('explore-button').disabled = true;
+    if (!window.L) await loadMapLibrary(`./vendor/leaflet/leaflet.js${retrySuffix}`);
+    if (window.L && !L.markerClusterGroup) await loadMapLibrary(`./vendor/leaflet.markercluster/leaflet.markercluster.js${retrySuffix}`);
+    initializeMap();
+    filterMarkers();
+    if (map) {
+      document.querySelectorAll('.map-controls button').forEach((button) => { button.disabled = false; });
+      byId('explore-button').disabled = false;
+      byId('map').setAttribute('aria-label', 'Интерактивная карта Астаны. Стрелки — перемещение, плюс и минус — масштаб.');
+      selectedMarker = markersById.get(selectedAttraction?.id);
+      selectedMarker?.setZIndexOffset(1000);
+      highlightSelection();
+    }
+    byId('map').setAttribute('aria-busy', 'false');
+    mapInitializing = false;
+  }
+  await prepareMap();
 })();
