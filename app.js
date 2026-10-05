@@ -1,0 +1,654 @@
+/* Leaflet, clustering, persistent favorites and themes are retained from the original app. */
+(async () => {
+  'use strict';
+
+  const byId = (id) => document.getElementById(id);
+  const icon = (name, extra = '') => `<svg class="icon ${extra}" aria-hidden="true"><use href="#icon-${name}"/></svg>`;
+  const normalize = (value) => String(value).toLocaleLowerCase('ru').replaceAll('ё', 'е').trim();
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const mobile = matchMedia('(max-width: 760px)');
+  const searchInput = byId('search-input');
+  const filterChips = byId('filter-chips');
+  const attractionList = byId('attraction-list');
+  const card = byId('attraction-card');
+  const findMeButton = byId('find-me-button');
+  const favoritesButton = byId('favorites-button');
+  const categoryOrder = ['event', 'attraction', 'park', 'food', 'culture', 'shopping'];
+  const FAVORITES_STORAGE_KEY = 'astana-explorer-favorites';
+  const THEME_STORAGE_KEY = 'astana-explorer-theme';
+  const attractionIds = new Set(attractions.map((place) => place.id));
+  const placesById = new Map(attractions.map((place) => [place.id, place]));
+  const markersById = new Map();
+  const listItemsById = new Map();
+  const searchIndex = new Map(attractions.map((place) => [place.id, normalize([
+    place.name, ...(place.aliases || []), place.description, place.area,
+    categories[place.category].label, ...(place.tags || [])
+  ].join(' '))]));
+
+  let favoriteIds = new Set();
+  let activeFilter = 'all';
+  let favoritesOnly = false;
+  let searchQuery = '';
+  let sortOrder = 'curated';
+  let selectedAttraction = null;
+  let selectedMarker = null;
+  let returnFocus = null;
+  let currentTheme = document.documentElement.dataset.theme;
+  let map = null;
+  let attractionMarkers = null;
+  let tileLayer = null;
+  let tileRevision = 0;
+  let tileTimeout = null;
+  let selectionRevision = 0;
+  let toastTimeout = null;
+  let userMarker = null;
+  let accuracyCircle = null;
+  let locationRequestInProgress = false;
+  let locationTimeout = null;
+  let locationRevision = 0;
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
+    if (Array.isArray(saved)) favoriteIds = new Set(saved.filter((id) => attractionIds.has(id)));
+  } catch { /* A damaged or unavailable store must not prevent browsing. */ }
+
+  function showLocationStatus(message, duration = 5500) {
+    const toast = byId('location-status');
+    clearTimeout(toastTimeout);
+    toast.textContent = message;
+    toast.hidden = false;
+    if (duration) toastTimeout = setTimeout(() => { toast.hidden = true; }, duration);
+  }
+
+  function saveFavorites() {
+    try {
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...favoriteIds]));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function getFilteredAttractions() {
+    const terms = searchQuery.split(/\s+/).filter(Boolean);
+    const results = attractions.filter((place) => (
+      (activeFilter === 'all' || place.category === activeFilter)
+      && (!favoritesOnly || favoriteIds.has(place.id))
+      && terms.every((term) => searchIndex.get(place.id).includes(term))
+    ));
+    return sortOrder === 'name'
+      ? results.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      : results;
+  }
+
+  function buildFilters() {
+    ['all', ...categoryOrder].forEach((id) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'filter-chip';
+      button.dataset.filter = id;
+      button.innerHTML = icon(id);
+      button.append(document.createTextNode(id === 'all' ? 'Всё' : categories[id].label));
+      button.setAttribute('aria-pressed', String(id === 'all'));
+      filterChips.append(button);
+    });
+  }
+
+  function buildListItem(place) {
+    const item = document.createElement('li');
+    item.className = 'attraction-list-item';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'attraction-list-button';
+    button.dataset.placeId = place.id;
+    button.setAttribute('aria-haspopup', 'dialog');
+    button.setAttribute('aria-controls', 'attraction-card');
+    const thumbnail = document.createElement('span');
+    thumbnail.className = 'place-thumbnail';
+    thumbnail.style.setProperty('--category-color', categories[place.category].color);
+    thumbnail.innerHTML = icon(place.category);
+    const copy = document.createElement('span');
+    copy.className = 'place-copy';
+    const category = document.createElement('span');
+    category.className = 'place-category';
+    category.textContent = categories[place.category].label + (place.demo ? ' · Пример' : '');
+    const name = document.createElement('span');
+    name.className = 'place-name';
+    name.textContent = place.name;
+    const description = document.createElement('span');
+    description.className = 'place-description';
+    description.textContent = place.description;
+    const meta = document.createElement('span');
+    meta.className = 'place-meta';
+    meta.innerHTML = icon(place.kind === 'event' ? 'event' : 'pin');
+    meta.append(document.createTextNode(place.kind === 'event' ? 'Демо · дата не назначена' : place.area));
+    copy.append(category, name, description, meta);
+    button.append(thumbnail, copy);
+    button.addEventListener('click', () => showAttraction(place, button));
+    const favorite = document.createElement('button');
+    favorite.type = 'button';
+    favorite.className = 'list-favorite';
+    favorite.dataset.favoriteId = place.id;
+    favorite.innerHTML = icon('bookmark', 'bookmark-icon');
+    favorite.addEventListener('click', () => toggleFavorite(place));
+    item.append(button, favorite);
+    return item;
+  }
+
+  function updateFavoriteButtons() {
+    byId('favorite-count').textContent = favoriteIds.size;
+    favoritesButton.setAttribute('aria-pressed', String(favoritesOnly));
+    favoritesButton.setAttribute('aria-label', favoritesOnly ? 'Показать всю подборку' : 'Показать избранное');
+    listItemsById.forEach((item, id) => {
+      const button = item.querySelector('.list-favorite');
+      const saved = favoriteIds.has(id);
+      button.setAttribute('aria-pressed', String(saved));
+      button.setAttribute('aria-label', `${saved ? 'Убрать из избранного' : 'Сохранить'}: ${placesById.get(id).name}`);
+      button.title = saved ? 'Убрать из избранного' : 'Сохранить';
+    });
+    if (selectedAttraction) {
+      const saved = favoriteIds.has(selectedAttraction.id);
+      byId('favorite-toggle').setAttribute('aria-pressed', String(saved));
+      byId('favorite-toggle').setAttribute('aria-label', saved ? 'Убрать из избранного' : 'Добавить в избранное');
+      byId('favorite-label').textContent = saved ? 'Сохранено' : 'Сохранить';
+    }
+  }
+
+  function renderAttractionList(filtered) {
+    // Reuse buttons so selection and favorite changes preserve keyboard focus.
+    const focused = document.activeElement;
+    const fragment = document.createDocumentFragment();
+    filtered.forEach((place) => {
+      const item = listItemsById.get(place.id);
+      item.querySelector('.attraction-list-button').setAttribute('aria-current', String(selectedAttraction?.id === place.id));
+      fragment.append(item);
+    });
+    if (!filtered.length) {
+      const item = document.createElement('li');
+      item.className = 'empty-state';
+      item.innerHTML = icon(favoritesOnly ? 'bookmark' : 'search');
+      const heading = document.createElement('h2');
+      heading.textContent = favoritesOnly && !favoriteIds.size ? 'Ваши открытия — здесь' : 'Ничего не нашлось';
+      const text = document.createElement('p');
+      text.textContent = favoritesOnly && !favoriteIds.size
+        ? 'Нажмите на закладку у места или события, чтобы сохранить его для будущей прогулки.'
+        : 'Попробуйте другое название, например «парк», или сбросьте выбранные фильтры.';
+      const reset = document.createElement('button');
+      reset.className = 'secondary-button';
+      reset.textContent = favoritesOnly && !favoriteIds.size ? 'Открыть подборку' : 'Сбросить фильтры';
+      reset.addEventListener('click', resetFilters);
+      item.append(heading, text, reset);
+      fragment.append(item);
+    }
+    attractionList.replaceChildren(fragment);
+    if (focused instanceof HTMLElement && attractionList.contains(focused)) focused.focus({ preventScroll: true });
+    else if (focused?.classList.contains('list-favorite')) {
+      const fallback = attractionList.querySelector('button') || favoritesButton;
+      fallback.focus({ preventScroll: true });
+    }
+  }
+
+  function filterMarkers({ fit = false } = {}) {
+    selectionRevision += 1;
+    const filtered = getFilteredAttractions();
+    const visibleIds = new Set(filtered.map((place) => place.id));
+    byId('places-counter').textContent = `${favoritesOnly ? 'Избранное' : 'Найдено'}: ${filtered.length}`;
+    byId('map-count-text').textContent = `${filtered.length} из ${attractions.length} мест и событий`;
+    byId('mobile-count').textContent = filtered.length;
+    byId('map-empty').hidden = filtered.length > 0;
+    byId('map-empty-text').textContent = favoritesOnly && !favoriteIds.size
+      ? 'Сохраните понравившиеся места с помощью закладки.'
+      : 'Попробуйте другое название или категорию.';
+    byId('clear-search').hidden = !searchInput.value;
+    byId('active-summary').hidden = activeFilter === 'all' && !searchQuery && !favoritesOnly;
+    byId('active-summary-text').textContent = [
+      favoritesOnly ? 'Избранное' : '', activeFilter !== 'all' ? categories[activeFilter].label : '',
+      searchQuery ? 'Поиск' : ''
+    ].filter(Boolean).join(' · ');
+    filterChips.querySelectorAll('button').forEach((chip) => {
+      const selected = chip.dataset.filter === activeFilter;
+      chip.classList.toggle('is-active', selected);
+      chip.setAttribute('aria-pressed', String(selected));
+    });
+    markersById.forEach((marker, id) => {
+      if (visibleIds.has(id)) {
+        if (!attractionMarkers.hasLayer(marker)) attractionMarkers.addLayer(marker);
+      } else if (attractionMarkers.hasLayer(marker)) attractionMarkers.removeLayer(marker);
+    });
+    if (selectedAttraction && !visibleIds.has(selectedAttraction.id) && !card.open) clearSelection();
+    renderAttractionList(filtered);
+    updateFavoriteButtons();
+    if (fit && filtered.length) fitResults();
+  }
+
+  function resetFilters() {
+    activeFilter = 'all';
+    favoritesOnly = false;
+    searchQuery = '';
+    searchInput.value = '';
+    filterMarkers({ fit: true });
+    searchInput.focus({ preventScroll: true });
+  }
+
+  function toggleFavorite(place) {
+    const added = !favoriteIds.has(place.id);
+    if (added) favoriteIds.add(place.id);
+    else favoriteIds.delete(place.id);
+    const persisted = saveFavorites();
+    filterMarkers();
+    if (!card.open) showLocationStatus(persisted
+      ? (added ? 'Сохранено в избранном' : 'Удалено из избранного')
+      : 'Сохранено только на время сеанса: хранилище браузера недоступно.');
+    else if (!persisted) byId('card-notice').textContent += ' Избранное доступно только на время этого сеанса: хранилище браузера недоступно.';
+  }
+
+  function clearSelection() {
+    selectedMarker?.getElement()?.classList.remove('is-selected');
+    selectedMarker?.setZIndexOffset(0);
+    selectedAttraction = null;
+    selectedMarker = null;
+  }
+
+  function highlightSelection() {
+    markersById.forEach((marker, id) => marker.getElement()?.classList.toggle('is-selected', id === selectedAttraction?.id));
+    listItemsById.forEach((item, id) => item.querySelector('.attraction-list-button')
+      .setAttribute('aria-current', String(id === selectedAttraction?.id)));
+  }
+
+  function showAttraction(place, trigger) {
+    selectionRevision += 1;
+    clearSelection();
+    selectedAttraction = place;
+    selectedMarker = markersById.get(place.id);
+    selectedMarker?.setZIndexOffset(1000);
+    returnFocus = trigger || document.activeElement;
+    byId('card-art').style.setProperty('--category-color', categories[place.category].color);
+    byId('card-art').innerHTML = icon(place.category);
+    byId('card-category').textContent = place.eventLabel || categories[place.category].label;
+    byId('card-name').textContent = place.name;
+    byId('card-area').textContent = place.area;
+    byId('card-description').textContent = place.description;
+    byId('card-tags').replaceChildren(...place.tags.map((tag) => {
+      const element = document.createElement('span');
+      element.className = 'card-tag';
+      element.textContent = tag;
+      return element;
+    }));
+    byId('card-notice').textContent = place.kind === 'event'
+      ? 'Демонстрационное событие. Площадка указана для примера: дата, организатор и билеты отсутствуют. Это не анонс.'
+      : place.demo
+        ? 'Демонстрационная точка: координаты приблизительные. Уточните адрес, вход и условия посещения по ссылке на источник.'
+        : 'Точка обозначает место, а не точный вход. Перед посещением уточните часы работы, доступность и стоимость у площадки.';
+    const source = byId('card-source');
+    source.hidden = !place.sourceUrl;
+    if (place.sourceUrl) {
+      source.href = place.sourceUrl;
+      byId('card-source-label').textContent = place.sourceLabel || 'Источник';
+    } else source.removeAttribute('href');
+    // Approximate/demo locations open a name search, rather than routing to an invented entrance.
+    byId('route-button').href = place.demo
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((place.kind === 'event' ? place.area.split(' · ')[0] : place.name) + ', Астана')}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${place.coordinates.join(',')}`;
+    byId('route-label').textContent = place.demo ? 'Найти площадку в Google Maps' : 'Маршрут в Google Maps';
+    updateFavoriteButtons();
+    highlightSelection();
+    if (!card.open) card.showModal();
+    card.scrollTop = 0;
+    byId('close-button').focus({ preventScroll: true });
+  }
+
+  function setMobileView(view) {
+    document.body.dataset.mobileView = view;
+    byId('view-map').setAttribute('aria-pressed', String(view === 'map'));
+    byId('view-list').setAttribute('aria-pressed', String(view === 'list'));
+    if (view === 'map') requestAnimationFrame(() => map?.invalidateSize({ pan: false }));
+  }
+
+  function fitResults() {
+    if (!map) return;
+    const filtered = getFilteredAttractions();
+    const points = (filtered.length ? filtered : attractions).map((place) => place.coordinates);
+    map.stop();
+    map.fitBounds(points, {
+      paddingTopLeft: mobile.matches ? [48, 78] : [70, 72],
+      paddingBottomRight: mobile.matches ? [64, 120] : [70, 48],
+      maxZoom: 15, animate: !reducedMotion.matches
+    });
+  }
+
+  function focusSelectedOnMap() {
+    if (!map || !selectedAttraction) return;
+    const place = selectedAttraction;
+    const marker = markersById.get(place.id);
+    if (!attractionMarkers.hasLayer(marker)) {
+      activeFilter = 'all';
+      favoritesOnly = false;
+      searchQuery = '';
+      searchInput.value = '';
+      filterMarkers();
+    }
+    setMobileView('map');
+    const revision = ++selectionRevision;
+    map.invalidateSize({ pan: false });
+    const show = () => {
+      if (revision !== selectionRevision || !attractionMarkers.hasLayer(marker)) return;
+      marker.openTooltip();
+      highlightSelection();
+    };
+    // Establish the desired view before expansion; changing zoom afterwards would
+    // collapse spiderfied markers when a place and an event share coordinates.
+    map.setView(place.coordinates, Math.max(16, map.getZoom()), { animate: false });
+    if (attractionMarkers.zoomToShowLayer) attractionMarkers.zoomToShowLayer(marker, show);
+    else show();
+  }
+
+  function setMapStatus(message, canRetry = false) {
+    byId('map-status-text').textContent = message;
+    byId('map-status').hidden = !message;
+    byId('retry-map').hidden = !canRetry;
+  }
+
+  function loadMapTiles() {
+    if (!map) return;
+    const revision = ++tileRevision;
+    clearTimeout(tileTimeout);
+    if (tileLayer) map.removeLayer(tileLayer);
+    let loaded = 0;
+    let failed = 0;
+    setMapStatus('Загружаем карту…');
+    tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    });
+    const unavailable = () => {
+      if (revision !== tileRevision) return;
+      setMapStatus('Подложка карты недоступна. Места, поиск и избранное работают; попробуйте загрузить карту снова.', true);
+    };
+    tileLayer.on('loading', () => { loaded = 0; failed = 0; });
+    tileLayer.on('tileload', () => { loaded += 1; });
+    tileLayer.on('tileerror', () => { failed += 1; unavailable(); });
+    tileLayer.on('load', () => {
+      if (revision !== tileRevision) return;
+      clearTimeout(tileTimeout);
+      if (failed || !loaded) unavailable();
+      else setMapStatus('');
+    });
+    tileTimeout = setTimeout(unavailable, 10000);
+    tileLayer.addTo(map);
+  }
+
+  function initializeMap() {
+    if (!window.L) {
+      setMapStatus('Не удалось загрузить карту. Откройте список: поиск, карточки и избранное доступны.');
+      byId('map').setAttribute('aria-label', 'Карта недоступна');
+      document.querySelectorAll('.map-controls button').forEach((button) => { button.disabled = true; });
+      byId('explore-button').disabled = true;
+      if (mobile.matches) setMobileView('list');
+      return;
+    }
+    map = L.map('map', { zoomControl: false, minZoom: 3, maxZoom: 19, zoomSnap: .5,
+      zoomAnimation: !reducedMotion.matches, fadeAnimation: !reducedMotion.matches,
+      markerZoomAnimation: !reducedMotion.matches
+    }).setView([51.128, 71.434], 13);
+    map.attributionControl.setPrefix(false);
+    attractionMarkers = L.markerClusterGroup ? L.markerClusterGroup({
+      maxClusterRadius: 42, showCoverageOnHover: false,
+      animate: !reducedMotion.matches, spiderfyOnMaxZoom: true,
+      iconCreateFunction(cluster) {
+        const count = cluster.getChildCount();
+        return L.divIcon({
+          html: `<span aria-label="Объектов: ${count}. Нажмите, чтобы раскрыть">${count}</span>`,
+          className: 'custom-marker-cluster', iconSize: [42, 42]
+        });
+      }
+    }).addTo(map) : L.featureGroup().addTo(map);
+    attractions.forEach((place) => {
+      const category = categories[place.category];
+      const marker = L.marker(place.coordinates, {
+        icon: L.divIcon({
+          html: `<span class="marker-pin" style="--category-color:${category.color}">${icon(place.category)}</span>`,
+          className: 'attraction-icon', iconSize: [42, 42], iconAnchor: [21, 36]
+        }),
+        title: `${place.name} · ${category.label}${place.demo ? ' · Пример' : ''}`,
+        alt: place.name, keyboard: true
+      });
+      const tooltip = document.createElement('span');
+      tooltip.textContent = place.name;
+      marker.bindTooltip(tooltip, { direction: 'top', offset: [0, -30] });
+      marker.on('click', () => showAttraction(place, marker.getElement()));
+      marker.on('add', () => {
+        const element = marker.getElement();
+        element?.setAttribute('aria-label', marker.options.title);
+        element?.setAttribute('aria-haspopup', 'dialog');
+        element?.setAttribute('data-marker-id', place.id);
+        element?.classList.toggle('is-selected', selectedAttraction?.id === place.id);
+      });
+      markersById.set(place.id, marker);
+      attractionMarkers.addLayer(marker);
+    });
+    attractionMarkers.on('animationend', highlightSelection);
+    fitResults();
+    loadMapTiles();
+    map.on('zoomend', () => {
+      byId('zoom-in').disabled = map.getZoom() >= map.getMaxZoom();
+      byId('zoom-out').disabled = map.getZoom() <= map.getMinZoom();
+    });
+    byId('map').addEventListener('keydown', (event) => {
+      if (event.key === ' ' && event.target.matches('.leaflet-marker-icon[role="button"]')) {
+        event.preventDefault();
+        event.target.click();
+      }
+    });
+    if ('ResizeObserver' in window) {
+      const observer = new ResizeObserver(() => requestAnimationFrame(() => map.invalidateSize({ pan: false })));
+      observer.observe(byId('map'));
+    }
+  }
+
+  function updateThemeToggle() {
+    const dark = currentTheme === 'dark';
+    const toggle = byId('theme-toggle');
+    toggle.innerHTML = icon(dark ? 'sun' : 'moon');
+    toggle.setAttribute('aria-pressed', String(dark));
+    toggle.setAttribute('aria-label', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
+    toggle.title = toggle.getAttribute('aria-label');
+  }
+
+  function finishLocationRequest() {
+    clearTimeout(locationTimeout);
+    locationRequestInProgress = false;
+    findMeButton.disabled = false;
+    findMeButton.setAttribute('aria-busy', 'false');
+  }
+
+  function handleLocationError(error) {
+    finishLocationRequest();
+    const messages = {
+      1: 'Доступ к геолокации не разрешён. Можно продолжить поиск на карте или разрешить доступ в настройках браузера.',
+      2: 'Не удалось определить местоположение. Попробуйте ещё раз.',
+      3: 'Определение местоположения заняло слишком много времени. Попробуйте ещё раз.'
+    };
+    showLocationStatus(messages[error?.code] || messages[2], 8500);
+  }
+
+  buildFilters();
+  attractions.forEach((place) => listItemsById.set(place.id, buildListItem(place)));
+  // Only load the plugin after Leaflet succeeds. Both the missing-library and
+  // missing-plugin cases retain a usable catalogue without an uncaught L error.
+  if (window.L) {
+    try { await import('./vendor/leaflet.markercluster/leaflet.markercluster.js'); }
+    catch { /* Individual markers remain available without clustering. */ }
+  }
+  initializeMap();
+  filterMarkers();
+  updateThemeToggle();
+
+  filterChips.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-filter]');
+    if (!chip) return;
+    activeFilter = chip.dataset.filter;
+    filterMarkers({ fit: true });
+    chip.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+  });
+  searchInput.addEventListener('input', () => {
+    searchQuery = normalize(searchInput.value);
+    filterMarkers({ fit: true });
+  });
+  byId('clear-search').addEventListener('click', () => {
+    searchInput.value = '';
+    searchQuery = '';
+    filterMarkers({ fit: true });
+    searchInput.focus();
+  });
+  byId('sort-select').addEventListener('change', (event) => {
+    sortOrder = event.target.value;
+    filterMarkers();
+    attractionList.scrollTop = 0;
+  });
+  byId('reset-filters').addEventListener('click', resetFilters);
+  byId('map-reset-filters').addEventListener('click', resetFilters);
+  favoritesButton.addEventListener('click', () => {
+    favoritesOnly = !favoritesOnly;
+    filterMarkers({ fit: true });
+    if (mobile.matches) setMobileView('list');
+  });
+  byId('favorite-toggle').addEventListener('click', () => {
+    if (selectedAttraction) toggleFavorite(selectedAttraction);
+  });
+  byId('close-button').addEventListener('click', () => card.close());
+  card.addEventListener('close', () => {
+    const visible = getFilteredAttractions().some((place) => place.id === selectedAttraction?.id);
+    if (!visible) clearSelection();
+    highlightSelection();
+    const triggerVisible = returnFocus instanceof HTMLElement && returnFocus.isConnected
+      && (returnFocus.checkVisibility?.() ?? returnFocus.getClientRects().length > 0);
+    if (triggerVisible) {
+      returnFocus.focus({ preventScroll: true });
+    } else if (mobile.matches && document.body.dataset.mobileView === 'map') {
+      byId('map').focus({ preventScroll: true });
+    } else {
+      (attractionList.querySelector('button') || searchInput).focus({ preventScroll: true });
+    }
+  });
+  byId('explore-button').addEventListener('click', () => {
+    returnFocus = byId('map');
+    card.close();
+    focusSelectedOnMap();
+  });
+  [card, byId('info-dialog')].forEach((dialog) => {
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      const controls = [...dialog.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex="0"]')]
+        .filter((element) => !element.closest('[hidden]') && element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !controls.includes(active))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (active === last || !controls.includes(active))) {
+        event.preventDefault();
+        first?.focus();
+      }
+    });
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+    });
+  });
+  ['about-button', 'map-about-button'].forEach((id) => byId(id).addEventListener('click', () => byId('info-dialog').showModal()));
+  byId('info-close').addEventListener('click', () => byId('info-dialog').close());
+  byId('view-map').addEventListener('click', () => setMobileView('map'));
+  byId('view-list').addEventListener('click', () => setMobileView('list'));
+  byId('fit-map').addEventListener('click', fitResults);
+  byId('zoom-in').addEventListener('click', () => map?.zoomIn());
+  byId('zoom-out').addEventListener('click', () => map?.zoomOut());
+  byId('retry-map').addEventListener('click', loadMapTiles);
+  window.addEventListener('online', () => { if (!byId('map-status').hidden) loadMapTiles(); });
+
+  byId('theme-toggle').addEventListener('click', () => {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = currentTheme;
+    try { localStorage.setItem(THEME_STORAGE_KEY, currentTheme); } catch { /* Theme still works for this session. */ }
+    updateThemeToggle();
+  });
+
+  attractionList.addEventListener('keydown', (event) => {
+    const button = event.target.closest('.attraction-list-button');
+    if (!button || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    const buttons = [...attractionList.querySelectorAll('.attraction-list-button')];
+    let index = buttons.indexOf(button);
+    if (event.key === 'Home') index = 0;
+    if (event.key === 'End') index = buttons.length - 1;
+    if (event.key === 'ArrowDown') index = (index + 1) % buttons.length;
+    if (event.key === 'ArrowUp') index = (index - 1 + buttons.length) % buttons.length;
+    event.preventDefault();
+    buttons[index].focus();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === '/' && !card.open && !byId('info-dialog').open
+      && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+      event.preventDefault();
+      searchInput.focus();
+    }
+  });
+  window.addEventListener('storage', (event) => {
+    if (event.key !== FAVORITES_STORAGE_KEY && event.key !== null) return;
+    try {
+      const saved = JSON.parse(event.newValue || '[]');
+      favoriteIds = new Set(Array.isArray(saved) ? saved.filter((id) => attractionIds.has(id)) : []);
+      filterMarkers();
+    } catch { /* Ignore malformed updates from another tab. */ }
+  });
+
+  findMeButton.addEventListener('click', () => {
+    if (!map || locationRequestInProgress) return;
+    if (!window.isSecureContext) {
+      showLocationStatus('Для геолокации откройте приложение по HTTPS или на localhost.');
+      return;
+    }
+    if (!navigator.geolocation) {
+      showLocationStatus('Браузер не поддерживает геолокацию. Используйте поиск по карте.');
+      return;
+    }
+    const revision = ++locationRevision;
+    locationRequestInProgress = true;
+    findMeButton.disabled = true;
+    findMeButton.setAttribute('aria-busy', 'true');
+    showLocationStatus('Определяем ваше местоположение…', 0);
+    locationTimeout = setTimeout(() => {
+      if (revision !== locationRevision) return;
+      locationRevision += 1;
+      handleLocationError({ code: 3 });
+    }, 14000);
+    try {
+      navigator.geolocation.getCurrentPosition((position) => {
+        if (revision !== locationRevision) return;
+        finishLocationRequest();
+        const { latitude, longitude, accuracy } = position.coords;
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)
+          || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+          handleLocationError({ code: 2 });
+          return;
+        }
+        const point = [latitude, longitude];
+        if (userMarker) map.removeLayer(userMarker);
+        if (accuracyCircle) map.removeLayer(accuracyCircle);
+        userMarker = L.circleMarker(point, { radius: 8, color: '#ffffff', weight: 3,
+          fillColor: '#2563eb', fillOpacity: 1, className: 'user-location-marker' }).addTo(map);
+        userMarker.bindTooltip('Вы здесь');
+        if (Number.isFinite(accuracy) && accuracy > 0) accuracyCircle = L.circle(point, {
+          radius: accuracy, color: '#2563eb', weight: 1, fillOpacity: .08, interactive: false
+        }).addTo(map);
+        map.setView(point, 15, { animate: !reducedMotion.matches });
+        const outsideCity = L.latLng(point).distanceTo([51.128, 71.434]) > 35000;
+        showLocationStatus(outsideCity
+          ? 'Вы за пределами Астаны. Кнопка «Показать все найденные места» вернёт вас к подборке.'
+          : 'Вы на карте. Точность зависит от устройства.', 8500);
+      }, (error) => {
+        if (revision === locationRevision) handleLocationError(error);
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    } catch (error) { handleLocationError(error); }
+  });
+})();
