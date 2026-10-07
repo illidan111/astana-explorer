@@ -5,15 +5,21 @@
   const byId = (id) => document.getElementById(id);
   const icon = (name, extra = '') => `<svg class="icon ${extra}" aria-hidden="true"><use href="#icon-${name}"/></svg>`;
   const normalize = (value) => String(value).toLocaleLowerCase('ru').replaceAll('ё', 'е').trim();
+  const pluralRules = new Intl.PluralRules('ru');
+  const countLabel = (count, forms) => `${count} ${forms[pluralRules.select(count)] || forms.other}`;
+  const placeForms = { one: 'место', few: 'места', other: 'мест' };
+  const pointForms = { one: 'точка', few: 'точки', other: 'точек' };
+  const exampleForms = { one: 'пример', few: 'примера', other: 'примеров' };
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const mobile = matchMedia('(max-width: 760px)');
+  const systemTheme = matchMedia('(prefers-color-scheme: dark)');
   const searchInput = byId('search-input');
   const filterChips = byId('filter-chips');
   const attractionList = byId('attraction-list');
   const card = byId('attraction-card');
   const findMeButton = byId('find-me-button');
   const favoritesButton = byId('favorites-button');
-  const categoryOrder = ['event', 'attraction', 'park', 'food', 'culture', 'shopping'];
+  const categoryOrder = ['attraction', 'park', 'culture', 'food', 'shopping', 'event'];
   const FAVORITES_STORAGE_KEY = 'astana-explorer-favorites';
   const THEME_STORAGE_KEY = 'astana-explorer-theme';
   const attractionIds = new Set(attractions.map((place) => place.id));
@@ -21,7 +27,7 @@
   const markersById = new Map();
   const listItemsById = new Map();
   const searchIndex = new Map(attractions.map((place) => [place.id, normalize([
-    place.name, ...(place.aliases || []), place.description, place.area,
+    place.name, ...(place.aliases || []), place.summary, place.description, place.area, place.address,
     categories[place.category].label, ...(place.tags || [])
   ].join(' '))]));
 
@@ -34,6 +40,7 @@
   let selectedMarker = null;
   let returnFocus = null;
   let currentTheme = document.documentElement.dataset.theme;
+  let hasThemePreference = false;
   let map = null;
   let attractionMarkers = null;
   let tileLayer = null;
@@ -48,11 +55,20 @@
   let mapInitializing = false;
   let resultsTimeout = null;
   let mapLoadAttempt = 0;
+  let shareRevision = 0;
+  let sharePending = false;
+  let hoveredPlaceId = null;
+  let focusedPlaceId = null;
+  let cardScrollPosition = 0;
+  const cardCloseContexts = [];
 
   try {
     const saved = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
     if (Array.isArray(saved)) favoriteIds = new Set(saved.filter((id) => attractionIds.has(id)));
   } catch { /* A damaged or unavailable store must not prevent browsing. */ }
+  try {
+    hasThemePreference = ['light', 'dark'].includes(localStorage.getItem(THEME_STORAGE_KEY));
+  } catch { /* The system theme can still be followed without browser storage. */ }
 
   function showLocationStatus(message, duration = 5500) {
     const toast = byId('location-status');
@@ -74,7 +90,8 @@
   function getFilteredAttractions() {
     const terms = searchQuery.split(/\s+/).filter(Boolean);
     const results = attractions.filter((place) => (
-      (activeFilter === 'all' || place.category === activeFilter)
+      (place.kind !== 'event' || activeFilter === 'event' || favoritesOnly)
+      && (activeFilter === 'all' || place.category === activeFilter)
       && (!favoritesOnly || favoriteIds.has(place.id))
       && terms.every((term) => searchIndex.get(place.id).includes(term))
     ));
@@ -90,7 +107,7 @@
       button.className = 'filter-chip';
       button.dataset.filter = id;
       button.innerHTML = icon(id);
-      button.append(document.createTextNode(id === 'all' ? 'Всё' : categories[id].label));
+      button.append(document.createTextNode(id === 'all' ? 'Все места' : categories[id].label));
       button.setAttribute('aria-pressed', String(id === 'all'));
       filterChips.append(button);
     });
@@ -108,23 +125,25 @@
     const thumbnail = document.createElement('span');
     thumbnail.className = 'place-thumbnail';
     thumbnail.style.setProperty('--category-color', categories[place.category].color);
-    thumbnail.innerHTML = icon(place.category);
+    thumbnail.setAttribute('aria-hidden', 'true');
+    thumbnail.innerHTML = icon(place.icon || place.category);
     const copy = document.createElement('span');
     copy.className = 'place-copy';
     const category = document.createElement('span');
     category.className = 'place-category';
-    category.textContent = categories[place.category].label + (place.demo ? ' · Пример' : '');
+    category.textContent = categories[place.category].label;
+    category.style.setProperty('--category-color', categories[place.category].color);
     const name = document.createElement('span');
     name.className = 'place-name';
     name.textContent = place.name;
     const description = document.createElement('span');
     description.className = 'place-description';
-    description.textContent = place.description;
+    description.textContent = place.summary || place.description;
     const meta = document.createElement('span');
     meta.className = 'place-meta';
     meta.innerHTML = icon(place.kind === 'event' ? 'event' : 'pin');
-    meta.append(document.createTextNode(place.kind === 'event' ? 'Демо · дата не назначена' : place.area));
-    copy.append(category, name, description, meta);
+    meta.append(document.createTextNode(place.kind === 'event' ? 'Пример · дата не назначена' : (place.address || place.area)));
+    copy.append(name, category, meta, description);
     button.append(thumbnail, copy);
     button.addEventListener('click', () => showAttraction(place, button));
     const favorite = document.createElement('button');
@@ -195,18 +214,27 @@
     attractionList.replaceChildren(fragment);
     attractionList.scrollTop = scrollTop;
     if (focused instanceof HTMLElement && attractionList.contains(focused)) focused.focus({ preventScroll: true });
-    else if (focused?.classList.contains('list-favorite')) {
+    else if (focusedIndex >= 0) {
       const nearbyItem = attractionList.children[Math.min(focusedIndex, attractionList.children.length - 1)];
-      const fallback = nearbyItem?.querySelector('.list-favorite, button') || favoritesButton;
+      const selector = focused.classList.contains('list-favorite') ? '.list-favorite' : '.attraction-list-button';
+      const fallback = nearbyItem?.querySelector(selector) || nearbyItem?.querySelector('button') || favoritesButton;
       fallback.focus({ preventScroll: true });
     }
   }
 
   function filterMarkers({ fit = false } = {}) {
     const filtered = getFilteredAttractions();
+    byId('results-heading').textContent = favoritesOnly ? 'Ваши сохранённые места'
+      : searchQuery ? 'Результаты поиска'
+        : activeFilter !== 'all' ? categories[activeFilter].label : 'Все места';
     const visibleIds = new Set(filtered.map((place) => place.id));
-    byId('places-counter').textContent = `${favoritesOnly ? 'Избранное' : 'Найдено'}: ${filtered.length}`;
-    byId('map-count-text').textContent = `${filtered.length} из ${attractions.length} мест и событий`;
+    const examplesCount = filtered.filter(place => place.demo).length;
+    const placesCount = filtered.length - examplesCount;
+    byId('places-counter').textContent = examplesCount === filtered.length && examplesCount
+      ? `${countLabel(examplesCount, exampleForms)} событий`
+      : [countLabel(placesCount, placeForms), examplesCount ? countLabel(examplesCount, exampleForms) : ''].filter(Boolean).join(' · ');
+    byId('map-count-text').textContent = `${countLabel(filtered.length, pointForms)} на карте${examplesCount ? ' · события — примеры' : ''}`;
+    byId('events-notice').hidden = !examplesCount || examplesCount !== filtered.length;
     byId('mobile-count').textContent = filtered.length;
     clearTimeout(resultsTimeout);
     resultsTimeout = setTimeout(() => {
@@ -237,8 +265,14 @@
         if (!attractionMarkers.hasLayer(marker)) attractionMarkers.addLayer(marker);
       } else if (attractionMarkers.hasLayer(marker)) attractionMarkers.removeLayer(marker);
     });
-    if (selectedAttraction && !visibleIds.has(selectedAttraction.id) && !card.open) clearSelection();
+    if (selectedAttraction && !visibleIds.has(selectedAttraction.id)) {
+      if (card.open) closeAttraction({ restoreFocus: false });
+      clearSelection();
+    }
+    if (hoveredPlaceId && !visibleIds.has(hoveredPlaceId)) hoveredPlaceId = null;
+    if (focusedPlaceId && !visibleIds.has(focusedPlaceId)) focusedPlaceId = null;
     renderAttractionList(filtered);
+    highlightSelection();
     if (fit) attractionList.scrollTop = 0;
     updateFavoriteButtons();
     if (fit && filtered.length) fitResults();
@@ -275,22 +309,98 @@
   }
 
   function highlightSelection() {
-    markersById.forEach((marker, id) => marker.getElement()?.classList.toggle('is-selected', id === selectedAttraction?.id));
-    listItemsById.forEach((item, id) => item.querySelector('.attraction-list-button')
-      .setAttribute('aria-current', String(id === selectedAttraction?.id)));
+    const highlightedId = hoveredPlaceId || focusedPlaceId;
+    markersById.forEach((marker, id) => {
+      marker.getElement()?.classList.toggle('is-selected', id === selectedAttraction?.id);
+      marker.getElement()?.classList.toggle('is-highlighted', id === highlightedId);
+      marker.setZIndexOffset(id === selectedAttraction?.id ? 1000 : id === highlightedId ? 800 : 0);
+    });
+    listItemsById.forEach((item, id) => {
+      item.querySelector('.attraction-list-button').setAttribute('aria-current', String(id === selectedAttraction?.id));
+      item.classList.toggle('is-highlighted', id === highlightedId);
+    });
+    byId('map').querySelectorAll('.custom-marker-cluster.is-highlighted')
+      .forEach((element) => element.classList.remove('is-highlighted'));
+    const highlightedMarker = markersById.get(highlightedId);
+    if (highlightedMarker) {
+      attractionMarkers?.getVisibleParent?.(highlightedMarker)?.getElement()?.classList.add('is-highlighted');
+    }
+  }
+
+  function openAttractionCard() {
+    const container = mobile.matches ? document.body : byId('list-view');
+    if (card.parentElement !== container) container.append(card);
+    card.dataset.presentation = mobile.matches ? 'sheet' : 'inspector';
+    card.setAttribute('aria-modal', String(mobile.matches));
+    byId('close-button').setAttribute('aria-label', mobile.matches ? 'Закрыть карточку' : 'К списку');
+    if (byId('close-label')) byId('close-label').textContent = mobile.matches ? 'Закрыть' : 'К списку';
+    if (mobile.matches) card.showModal();
+    else card.show();
+  }
+
+  function closeAttraction({ restoreFocus = true } = {}) {
+    if (!card.open) return;
+    const focused = document.activeElement;
+    cardCloseContexts.push({ restoreFocus });
+    resetShareState();
+    card.close();
+    // Native dialogs restore the opener synchronously. Filtering must keep an
+    // outside input or category button focused so typing and navigation continue.
+    if (!restoreFocus && focused instanceof HTMLElement && !card.contains(focused)
+      && focused.isConnected) focused.focus({ preventScroll: true });
+  }
+
+  function syncCardPresentation() {
+    if (!card.open || byId('info-dialog').open || card.matches(':modal') === mobile.matches) return;
+    const focused = document.activeElement;
+    // The desktop sidebar may already be display:none after the media query
+    // changes. Its child's scrollTop then reads zero until it leaves that tree.
+    const scrollTop = card.getClientRects().length ? card.scrollTop : cardScrollPosition;
+    // A dialog must close before switching between show() and showModal().
+    // This lifecycle event is presentation-only: selection and sharing survive.
+    cardCloseContexts.push({ presentationChange: true });
+    card.close();
+    openAttractionCard();
+    card.scrollTop = scrollTop;
+    cardScrollPosition = card.scrollTop;
+    if (focused instanceof HTMLElement && focused.isConnected
+      && (!mobile.matches || card.contains(focused))
+      && (focused.checkVisibility?.() ?? focused.getClientRects().length > 0)) {
+      focused.focus({ preventScroll: true });
+    } else byId('close-button').focus({ preventScroll: true });
+  }
+
+  function updateMarkerLabel(marker) {
+    const tooltip = marker.getTooltip();
+    const permanent = Boolean(map && map.getZoom() >= 15);
+    if (!tooltip || tooltip.options.permanent === permanent) return;
+    const content = tooltip.getContent();
+    marker.unbindTooltip().bindTooltip(content, {
+      direction: 'top', offset: [0, -30], permanent, className: 'place-map-label'
+    });
   }
 
   function showAttraction(place, trigger) {
+    const wasOpen = card.open;
+    const focusedInside = card.contains(document.activeElement);
+    if (wasOpen && selectedAttraction?.id === place.id) {
+      if (trigger) returnFocus = trigger;
+      highlightSelection();
+      return;
+    }
+    resetShareState();
     clearSelection();
     selectedAttraction = place;
     selectedMarker = markersById.get(place.id);
     selectedMarker?.setZIndexOffset(1000);
     returnFocus = trigger || document.activeElement;
     byId('card-art').style.setProperty('--category-color', categories[place.category].color);
-    byId('card-art').innerHTML = icon(place.category);
+    byId('card-art').innerHTML = icon(place.icon || place.category);
+    card.querySelector('.source-details').open = false;
     byId('card-category').textContent = place.eventLabel || categories[place.category].label;
     byId('card-name').textContent = place.name;
-    byId('card-area').textContent = place.area;
+    const destination = place.kind === 'event' ? placesById.get(place.venueId) : place;
+    byId('card-area').textContent = destination.address || destination.area;
     byId('card-description').textContent = place.description;
     byId('card-tags').replaceChildren(...place.tags.map((tag) => {
       const element = document.createElement('span');
@@ -300,26 +410,39 @@
     }));
     byId('card-notice').textContent = place.kind === 'event'
       ? 'Демонстрационное событие. Площадка указана для примера: дата, организатор и билеты отсутствуют. Это не анонс.'
-      : place.demo
-        ? 'Демонстрационная точка: координаты приблизительные. Уточните адрес, вход и условия посещения по ссылке на источник.'
-        : 'Точка обозначает место, а не точный вход. Перед посещением уточните часы работы, доступность и стоимость у площадки.';
+      : 'Маркер обозначает объект, а не проверенный вход. Часы работы, условия посещения и стоимость уточните по ссылке на источник.';
+    const [latitude, longitude] = destination.coordinates;
+    byId('card-point').textContent = `${destination.pointLabel} · ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    byId('card-verified').textContent = `Данные ${place.kind === 'event' ? 'площадки ' : ''}проверены ${new Intl.DateTimeFormat('ru', { timeZone: 'UTC' }).format(new Date(destination.verifiedAt + 'T00:00:00Z'))}`;
+    byId('card-coordinate-source').href = destination.coordinateSourceUrl;
     const source = byId('card-source');
-    source.hidden = !place.sourceUrl;
-    if (place.sourceUrl) {
-      source.href = place.sourceUrl;
-      byId('card-source-label').textContent = place.sourceLabel || 'Источник';
+    source.hidden = !destination.sourceUrl;
+    if (destination.sourceUrl) {
+      source.href = destination.sourceUrl;
+      byId('card-source-label').textContent = destination.sourceLabel || 'Источник';
     } else source.removeAttribute('href');
-    // Approximate/demo locations open a name search, rather than routing to an invented entrance.
-    const venue = placesById.get(place.venueId);
-    byId('route-button').href = place.demo
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((venue?.name || place.name) + ', Астана')}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${place.coordinates.join(',')}`;
-    byId('route-label').textContent = place.demo ? 'Найти площадку в Google Maps' : 'Маршрут в Google Maps';
+    const program = byId('card-program');
+    program.hidden = !destination.programUrl;
+    if (destination.programUrl) {
+      program.href = destination.programUrl;
+      byId('card-program-label').textContent = destination.programLabel;
+    } else program.removeAttribute('href');
+    // One destination drives the marker, provenance and route, including demo host venues.
+    const routeUrl = new URL('https://www.google.com/maps/dir/');
+    routeUrl.search = new URLSearchParams({ api: '1', destination: destination.routeQuery }).toString();
+    // A named address and reviewed place ID avoid reverse-geocoding coordinates
+    // to a neighbouring tenant. The full address also disambiguates the fallback.
+    routeUrl.searchParams.set('destination_place_id', destination.googlePlaceId);
+    byId('route-button').href = routeUrl.href;
+    byId('route-label').textContent = place.kind === 'event' ? 'Построить маршрут к площадке' : 'Построить маршрут';
+    byId('route-hint').textContent = `Google Maps · ${destination.routeDestinationLabel || destination.name}. Укажите начало маршрута в Google Maps.`;
     updateFavoriteButtons();
     highlightSelection();
-    if (!card.open) card.showModal();
+    if (!card.open) openAttractionCard();
+    if (!mobile.matches) revealSelectedOnMap();
     card.scrollTop = 0;
-    byId('close-button').focus({ preventScroll: true });
+    cardScrollPosition = 0;
+    if (!wasOpen || mobile.matches || focusedInside) byId('close-button').focus({ preventScroll: true });
   }
 
   function setMobileView(view) {
@@ -368,6 +491,17 @@
     highlightSelection();
   }
 
+  function revealSelectedOnMap() {
+    if (!map || !selectedAttraction || !selectedMarker) return;
+    map.invalidateSize({ pan: false });
+    map.stop();
+    attractionMarkers.unspiderfy?.();
+    map.setView(selectedAttraction.coordinates, Math.max(15, map.getZoom()), { animate: false });
+    const parent = attractionMarkers.getVisibleParent?.(selectedMarker);
+    if (parent && parent !== selectedMarker) parent.spiderfy();
+    highlightSelection();
+  }
+
   function setMapStatus(message, canRetry = false) {
     byId('map-status-text').textContent = message;
     byId('map-status').hidden = !message;
@@ -393,11 +527,13 @@
     });
     const unavailable = () => {
       if (revision !== tileRevision) return;
-      setMapStatus('Подложка карты недоступна. Места, поиск и избранное работают; попробуйте загрузить карту снова.', true);
+      setMapStatus('Подложка карты недоступна.', true);
     };
     tileLayer.on('loading', () => {
+      if (revision !== tileRevision) return;
       loaded = 0;
       failed = 0;
+      setMapStatus('Загружаем карту…');
       clearTimeout(tileTimeout);
       tileTimeout = setTimeout(unavailable, 10000);
     });
@@ -415,7 +551,7 @@
 
   function initializeMap() {
     if (!window.L) {
-      setMapStatus('Не удалось загрузить карту. Поиск, список и избранное доступны. Повторите загрузку карты.', true);
+      setMapStatus('Не удалось загрузить карту. Места доступны в списке.', true);
       byId('map').setAttribute('aria-label', 'Карта недоступна');
       document.querySelectorAll('.map-controls button').forEach((button) => { button.disabled = true; });
       byId('explore-button').disabled = true;
@@ -442,7 +578,7 @@
       const category = categories[place.category];
       const marker = L.marker(place.coordinates, {
         icon: L.divIcon({
-          html: `<span class="marker-pin" style="--category-color:${category.color}">${icon(place.category)}</span>`,
+          html: `<span class="marker-pin" style="--category-color:${category.color}">${icon(place.icon || place.category)}</span>`,
           className: 'attraction-icon', iconSize: [42, 42], iconAnchor: [21, 36]
         }),
         title: `${place.name} · ${category.label}${place.demo ? ' · Пример' : ''}`,
@@ -452,12 +588,16 @@
       tooltip.textContent = place.name;
       marker.bindTooltip(tooltip, { direction: 'top', offset: [0, -30] });
       marker.on('click', () => showAttraction(place, marker.getElement()));
+      marker.on('mouseover', () => { hoveredPlaceId = place.id; highlightSelection(); });
+      marker.on('mouseout', () => { hoveredPlaceId = null; highlightSelection(); });
       marker.on('add', () => {
         const element = marker.getElement();
         element?.setAttribute('aria-label', marker.options.title);
         element?.setAttribute('aria-haspopup', 'dialog');
         element?.setAttribute('data-marker-id', place.id);
         element?.classList.toggle('is-selected', selectedAttraction?.id === place.id);
+        element?.classList.toggle('is-highlighted', (hoveredPlaceId || focusedPlaceId) === place.id);
+        updateMarkerLabel(marker);
       });
       markersById.set(place.id, marker);
       attractionMarkers.addLayer(marker);
@@ -469,6 +609,7 @@
     };
     attractionMarkers.on('animationend', () => { highlightSelection(); labelClusters(); });
     map.on('layeradd zoomend', labelClusters);
+    map.on('zoomend', () => markersById.forEach(updateMarkerLabel));
     fitResults();
     loadMapTiles();
     map.on('zoomend', () => {
@@ -495,6 +636,83 @@
     toggle.setAttribute('aria-pressed', String(dark));
     toggle.setAttribute('aria-label', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
     toggle.title = toggle.getAttribute('aria-label');
+  }
+
+  function applyTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.dataset.theme = theme;
+    updateThemeToggle();
+  }
+
+  function resetShareState() {
+    shareRevision += 1;
+    sharePending = false;
+    const fallback = byId('share-fallback');
+    const status = byId('share-status');
+    byId('share-place')?.setAttribute('aria-busy', 'false');
+    if (fallback) fallback.hidden = true;
+    if (status) {
+      status.textContent = '';
+      status.hidden = true;
+    }
+  }
+
+  function openLinkedPlace() {
+    const id = new URLSearchParams(window.location.hash.slice(1)).get('place');
+    const place = placesById.get(id);
+    if (!place) return;
+    if (!getFilteredAttractions().some((result) => result.id === place.id)) {
+      activeFilter = place.kind === 'event' ? 'event' : 'all';
+      favoritesOnly = false;
+      searchQuery = '';
+      searchInput.value = '';
+      filterMarkers();
+    }
+    if (mobile.matches) setMobileView('list');
+    showAttraction(place, listItemsById.get(id).querySelector('.attraction-list-button'));
+  }
+
+  async function shareSelectedPlace() {
+    if (!selectedAttraction || sharePending) return;
+    const id = selectedAttraction.id;
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = new URLSearchParams({ place: id }).toString();
+    resetShareState();
+    const revision = shareRevision;
+    sharePending = true;
+    byId('share-place')?.setAttribute('aria-busy', 'true');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(url.href);
+      if (revision === shareRevision && card.open && selectedAttraction?.id === id) {
+        const status = byId('share-status');
+        if (status) {
+          status.hidden = false;
+          status.textContent = 'Ссылка на место скопирована';
+        }
+      }
+    } catch {
+      if (revision !== shareRevision || !card.open || selectedAttraction?.id !== id) return;
+      const fallback = byId('share-fallback');
+      const input = byId('share-url');
+      if (!fallback || !input) return;
+      input.value = url.href;
+      fallback.hidden = false;
+      const status = byId('share-status');
+      if (status) {
+        status.hidden = false;
+        status.textContent = 'Автоматическое копирование недоступно. Скопируйте выделенную ссылку.';
+      }
+      input.focus({ preventScroll: true });
+      input.select();
+      input.scrollIntoView({ block: 'nearest' });
+    } finally {
+      if (revision === shareRevision) {
+        sharePending = false;
+        byId('share-place')?.setAttribute('aria-busy', 'false');
+      }
+    }
   }
 
   function finishLocationRequest() {
@@ -554,11 +772,22 @@
   byId('favorite-toggle').addEventListener('click', () => {
     if (selectedAttraction) toggleFavorite(selectedAttraction);
   });
-  byId('close-button').addEventListener('click', () => card.close());
+  byId('close-button').addEventListener('click', () => closeAttraction());
+  card.addEventListener('scroll', () => {
+    if (card.open && card.getClientRects().length) cardScrollPosition = card.scrollTop;
+  }, { passive: true });
+  card.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeAttraction();
+  });
   card.addEventListener('close', () => {
+    const context = cardCloseContexts.shift();
+    if (context?.presentationChange || card.open) return;
+    if (!context) resetShareState();
     const visible = getFilteredAttractions().some((place) => place.id === selectedAttraction?.id);
     if (!visible) clearSelection();
     highlightSelection();
+    if (context?.restoreFocus === false) return;
     const triggerVisible = returnFocus instanceof HTMLElement && returnFocus.isConnected
       && (returnFocus.checkVisibility?.() ?? returnFocus.getClientRects().length > 0);
     if (triggerVisible) {
@@ -571,14 +800,17 @@
   });
   byId('explore-button').addEventListener('click', () => {
     returnFocus = byId('map');
-    card.close();
+    closeAttraction();
     focusSelectedOnMap();
   });
+  byId('share-place')?.addEventListener('click', shareSelectedPlace);
   [card, byId('info-dialog')].forEach((dialog) => {
     dialog.addEventListener('keydown', (event) => {
+      if (dialog === card && !card.matches(':modal')) return;
       if (event.key !== 'Tab') return;
-      const controls = [...dialog.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex="0"]')]
-        .filter((element) => !element.closest('[hidden]') && element.getClientRects().length > 0);
+      const controls = [...dialog.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), details > summary, [tabindex="0"]')]
+        .filter((element) => !element.closest('[hidden]')
+          && (element.checkVisibility?.() ?? element.getClientRects().length > 0));
       const first = controls[0];
       const last = controls[controls.length - 1];
       const active = document.activeElement;
@@ -593,11 +825,15 @@
     dialog.addEventListener('click', (event) => {
       if (event.target !== dialog) return;
       const rect = dialog.getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
+        if (dialog === card) closeAttraction();
+        else dialog.close();
+      }
     });
   });
   ['about-button', 'map-about-button'].forEach((id) => byId(id).addEventListener('click', () => byId('info-dialog').showModal()));
   byId('info-close').addEventListener('click', () => byId('info-dialog').close());
+  byId('info-dialog').addEventListener('close', syncCardPresentation);
   byId('view-map').addEventListener('click', () => setMobileView('map'));
   byId('view-list').addEventListener('click', () => setMobileView('list'));
   byId('fit-map').addEventListener('click', fitResults);
@@ -608,10 +844,34 @@
   window.addEventListener('online', () => { if (!byId('map-status').hidden) retryMap(); });
 
   byId('theme-toggle').addEventListener('click', () => {
-    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = currentTheme;
+    hasThemePreference = true;
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
     try { localStorage.setItem(THEME_STORAGE_KEY, currentTheme); } catch { /* Theme still works for this session. */ }
-    updateThemeToggle();
+  });
+  systemTheme.addEventListener('change', (event) => {
+    if (!hasThemePreference) applyTheme(event.matches ? 'dark' : 'light');
+  });
+  mobile.addEventListener('change', syncCardPresentation);
+
+  attractionList.addEventListener('pointerover', (event) => {
+    const button = event.target.closest('.attraction-list-button');
+    if (!button) return;
+    hoveredPlaceId = button.dataset.placeId;
+    highlightSelection();
+  });
+  attractionList.addEventListener('pointerout', (event) => {
+    const button = event.target.closest('.attraction-list-button');
+    if (!button || button.contains(event.relatedTarget)) return;
+    hoveredPlaceId = null;
+    highlightSelection();
+  });
+  attractionList.addEventListener('focusin', (event) => {
+    focusedPlaceId = event.target.closest('.attraction-list-button')?.dataset.placeId || null;
+    highlightSelection();
+  });
+  attractionList.addEventListener('focusout', (event) => {
+    focusedPlaceId = event.relatedTarget?.closest?.('.attraction-list-button')?.dataset.placeId || null;
+    highlightSelection();
   });
 
   attractionList.addEventListener('keydown', (event) => {
@@ -627,13 +887,21 @@
     buttons[index].focus();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === '/' && !card.open && !byId('info-dialog').open
+    if (event.key === 'Escape' && card.open && !card.matches(':modal') && !byId('info-dialog').open) {
+      event.preventDefault();
+      closeAttraction();
+    }
+    if (event.key === '/' && !card.matches(':modal') && !byId('info-dialog').open
       && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
       event.preventDefault();
       searchInput.focus();
     }
   });
   window.addEventListener('storage', (event) => {
+    if (event.key === THEME_STORAGE_KEY || event.key === null) {
+      hasThemePreference = ['light', 'dark'].includes(event.newValue);
+      applyTheme(hasThemePreference ? event.newValue : (systemTheme.matches ? 'dark' : 'light'));
+    }
     if (event.key !== FAVORITES_STORAGE_KEY && event.key !== null) return;
     try {
       const saved = JSON.parse(event.newValue || '[]');
@@ -641,6 +909,7 @@
       filterMarkers();
     } catch { /* Ignore malformed updates from another tab. */ }
   });
+  window.addEventListener('hashchange', openLinkedPlace);
 
   findMeButton.addEventListener('click', () => {
     if (!map || locationRequestInProgress) return;
@@ -721,9 +990,11 @@
       selectedMarker = markersById.get(selectedAttraction?.id);
       selectedMarker?.setZIndexOffset(1000);
       highlightSelection();
+      if (card.open && !mobile.matches) revealSelectedOnMap();
     }
     byId('map').setAttribute('aria-busy', 'false');
     mapInitializing = false;
   }
+  openLinkedPlace();
   await prepareMap();
 })();

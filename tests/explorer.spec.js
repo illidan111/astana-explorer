@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { useLocalMapTiles } from './helpers/map-tiles.js';
 
 const cards = (page) => page.locator('.attraction-list-button[data-place-id]');
 async function showList(page) {
@@ -109,6 +110,7 @@ test('a category marker opens details and map controls respond', async ({ page }
 });
 
 test('theme persists and detail route is a real external destination', async ({ page }, testInfo) => {
+  await useLocalMapTiles(page);
   await page.goto('/');
   await expect(page.locator('#map .leaflet-tile-pane')).toBeAttached();
   const initialTheme = await page.locator('html').getAttribute('data-theme');

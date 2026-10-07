@@ -8,7 +8,7 @@ async function openList(page) {
 
 test('saving an inline favorite preserves the current place in a long list', async ({ page }) => {
   await openList(page);
-  const favorite = page.locator('.list-favorite[data-favorite-id="demo-park-sketching"]');
+  const favorite = page.locator('.list-favorite[data-favorite-id="presidential-park"]');
   await favorite.scrollIntoViewIfNeeded();
   await favorite.focus();
   const before = await page.locator('#attraction-list').evaluate((list) => list.scrollTop);
@@ -45,7 +45,7 @@ test('a slow optional clustering script cannot discard early search input', asyn
     // The catalogue must work before an optional map enhancement finishes.
     await expect(page.locator('.attraction-list-button')).toHaveCount(1);
     await expect(page.locator('.attraction-list-button')).toHaveAttribute('data-place-id', 'baiterek');
-    await expect(page.locator('#map-count-text')).toHaveText('1 из 15 мест и событий');
+    await expect(page.locator('#map-count-text')).toHaveText('1 точка на карте');
     releasePlugin();
     await expect(page.locator('#map .leaflet-tile-pane')).toBeAttached();
     await expect(page.locator('.attraction-list-button')).toHaveCount(1);
@@ -63,7 +63,7 @@ test('an active category can be toggled off without discarding the search', asyn
   await park.click();
   await expect(park).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('[data-filter="all"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.attraction-list-button')).toHaveCount(15);
+  await expect(page.locator('.attraction-list-button')).toHaveCount(12);
   await page.locator('#search-input').fill('парк');
   const searchCount = await page.locator('.attraction-list-button').count();
   await park.click();
@@ -74,10 +74,10 @@ test('an active category can be toggled off without discarding the search', asyn
   await page.locator('#clear-search').click();
   await expect(page.locator('#search-input')).toHaveValue('');
   await expect(page.locator('#search-input')).toBeFocused();
-  await expect(page.locator('.attraction-list-button')).toHaveCount(15);
+  await expect(page.locator('.attraction-list-button')).toHaveCount(12);
 });
 
-test('closing details retains query, category, list position and map position', async ({ page }) => {
+test('closing details retains query, category, list position and the selected map context', async ({ page }) => {
   await openList(page);
   await page.locator('[data-filter="attraction"]').click();
   await page.locator('#search-input').fill('а');
@@ -86,16 +86,17 @@ test('closing details retains query, category, list position and map position', 
   const beforeScroll = await page.locator('#attraction-list').evaluate((list) => list.scrollTop);
   const beforeView = await page.locator('body').getAttribute('data-mobile-view');
   await expect(page.locator('.leaflet-zoom-anim')).toHaveCount(0);
-  const beforePane = await page.locator('.leaflet-map-pane').getAttribute('style');
   await last.click();
   await expect(page.locator('#attraction-card')).toBeVisible();
+  await expect(page.locator('.leaflet-zoom-anim')).toHaveCount(0);
+  const selectedPane = await page.locator('.leaflet-map-pane').getAttribute('style');
   await page.keyboard.press('Escape');
   await expect(last).toBeFocused();
   await expect(page.locator('#search-input')).toHaveValue('а');
   await expect(page.locator('[data-filter="attraction"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('body')).toHaveAttribute('data-mobile-view', beforeView);
   expect(await page.locator('#attraction-list').evaluate((list) => list.scrollTop)).toBe(beforeScroll);
-  await expect(page.locator('.leaflet-map-pane')).toHaveAttribute('style', beforePane);
+  await expect(page.locator('.leaflet-map-pane')).toHaveAttribute('style', selectedPane);
 });
 
 test('rapid searches supersede cluster expansion and leave map and list in agreement', async ({ page }) => {
@@ -113,15 +114,15 @@ test('rapid searches supersede cluster expansion and leave map and list in agree
   await expect(page.locator('.attraction-icon')).toHaveCount(1);
   await expect(page.locator('.custom-marker-cluster')).toHaveCount(0);
   await expect(page.locator('#attraction-card')).not.toBeVisible();
-  await expect(page.locator('#map-count-text')).toHaveText('1 из 15 мест и событий');
+  await expect(page.locator('#map-count-text')).toHaveText('1 точка на карте');
   await page.locator('#clear-search').click();
-  await expect(page.locator('.attraction-list-button')).toHaveCount(15);
+  await expect(page.locator('.attraction-list-button')).toHaveCount(12);
   await expect.poll(() => page.locator('#map').evaluate((map) => {
     const singleMarkers = map.querySelectorAll('.attraction-icon').length;
     const clustered = [...map.querySelectorAll('.custom-marker-cluster')]
       .reduce((sum, marker) => sum + Number(marker.textContent), 0);
     return singleMarkers + clustered;
-  })).toBe(15);
+  })).toBe(12);
   expect(errors).toEqual([]);
 });
 
@@ -138,7 +139,7 @@ test('result changes are announced in map view and markers have usable accessibl
   await expect(page.getByRole('status').filter({ hasText: 'Найдено объектов: 0.' })).toHaveCount(1);
   await expect(page.locator('#map-empty')).toBeVisible();
   await page.locator('#map-reset-filters').click();
-  await expect(page.locator('#results-status')).toContainText('Найдено объектов: 15.');
+  await expect(page.locator('#results-status')).toContainText('Найдено объектов: 12.');
 });
 
 test('map marker buttons open with Enter and Space and restore keyboard focus', async ({ page }) => {

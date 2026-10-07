@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="240" height="180" role="img" aria-labelledby="title">
+<title id="title">Line Brew · Кенесары — авторская иллюстрация</title>
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#edf0e6"/><stop offset="1" stop-color="#faf5e9"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8d3c8"/><stop offset="1" stop-color="#628f81"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e6d19a"/><stop offset="1" stop-color="#b99550"/></linearGradient>
+  <symbol id="tree" viewBox="0 0 34 70"><path d="M17 36v32m0-17L8 40m9 16 9-18" stroke="#4c7460" stroke-width="1.4" fill="none"/><path d="M17 2C4 3-2 16 3 29c-6 13 3 22 14 21 13 2 22-11 15-22C36 14 28 2 17 2Z" fill="#7fa38b"/><path d="M17 14v36m0-20L9 23m8 13 8-11" stroke="#557b64" stroke-width="1.1" fill="none"/></symbol>
+  <symbol id="pine" viewBox="0 0 26 58"><path d="M13 40v18" stroke="#4c7460" stroke-width="1.4"/><path d="m13 0-8 18h4L1 35h6L0 49h26l-7-14h6l-8-17h4Z" fill="#5e8874"/><path d="M13 12v37m0-15-6-7m6 16 7-9" stroke="#8aaa8e" stroke-width="1" fill="none"/></symbol>
+  <symbol id="bush" viewBox="0 0 42 18"><path d="M1 17C-2 9 7 3 15 6c1-9 14-8 18 0 8-1 12 7 8 11Z" fill="#a0b59a"/><path d="m11 15 6-7m8 7 6-6" stroke="#718f75" stroke-width="1"/></symbol>
+  <symbol id="lamp" viewBox="0 0 10 38"><path d="M5 8v30M2 37h6" stroke="#557667" stroke-width="1.2"/><path d="M1 3h8L8 9H2Z" fill="#e4cf96" stroke="#557667" stroke-width="1"/><path d="M5 0v3" stroke="#557667" stroke-width="1"/></symbol>
+</defs>
+<rect width="240" height="180" fill="url(#sky)"/>
+<circle cx="174" cy="35" r="19" fill="#e4cf9e" opacity=".62"/>
+<g fill="none" stroke="#ced8ca" stroke-width="1.1" stroke-linecap="round"><path d="M18 39h24m-16 6h34M173 24h25m-6 6h26"/><path d="m37 65 3-2 3 2m107-25 3-2 3 2" stroke="#8da08c"/></g>
+<path d="M0 137Q47 125 88 137T168 135T240 136V180H0Z" fill="#dce4d3"/><path d="M0 156q64-13 116-3t124-6v33H0Z" fill="#cad8c1"/>
+
+<path d="M19 144h203v16H19Z" fill="#e0d2bb"/>
+<path d="M35 72h27v76H35Zm143 5h29v71h-29Z" fill="#cda17b" stroke="#966f53" stroke-width="1"/>
+<path d="M64 85h113v63H64Z" fill="#c4926c" stroke="#976e50" stroke-width="1"/>
+<path d="M61 82h118v8H61Z" fill="#e0bb8f"/>
+<path d="M35 73V62h7v6h6v-6h7v6h7v7m116 2V67h7v6h7v-6h8v6h7v6" fill="#e0bb8f" stroke="#966f53" stroke-width="1"/>
+<g stroke="#af815c" stroke-width=".8" fill="none"><path d="M36 88h25m-25 15h25m-25 15h25m-25 15h25m-21-58v13m13 0v15m-13 0v15m13 0v15m-21 15v-15M179 94h27m-27 15h27m-27 15h27m-27 15h27m-18-45V79m11 15v15m-11 0v15m11 0v15m-22 9v-9M65 105h110m-110 15h110m-110 15h110m-91-45v15m18 0v15m18-30v15m18 0v15m18-30v15"/></g>
+<path d="M46 96q-6 0-6 8v17h13v-17q0-8-7-8Zm146 5q-7 0-7 8v17h14v-17q0-8-7-8Z" fill="#ebd7a2" stroke="#8f6b51" stroke-width="1"/>
+<path d="M75 148v-25q12-19 24 0v25Zm66 0v-25q12-19 24 0v25Z" fill="#608571" stroke="#825e44" stroke-width="1"/>
+<path d="M108 148v-25q12-20 24 0v25Z" fill="#ebcf96" stroke="#825e44" stroke-width="1"/>
+<path d="M120 115v33m-42-16h19m47 0h18m-117-28v17m147-12v17" stroke="#9e865d" stroke-width="1" fill="none"/>
+<path d="M74 110h92v5H74Z" fill="#658670"/>
+<path d="M106 151h28v4h-28Z" fill="#b49c7b"/><path d="m117 155-20 25h54l-28-25" fill="#ede1c9"/>
+<use href="#tree" x="1" y="89" width="31" height="64"/><use href="#tree" x="209" y="103" width="30" height="61"/>
+<use href="#bush" x="28" y="150" width="35" height="15"/><use href="#bush" x="168" y="151" width="39" height="17"/>
+
+</svg>

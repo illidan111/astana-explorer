@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { useLocalMapTiles } from './helpers/map-tiles.js';
 
 test('compact phone, tablet and landscape keep controls within the viewport', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One viewport loop covers both narrow and wide layouts.');
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await useLocalMapTiles(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   for (const [width, height] of [[320, 568], [768, 1024], [1024, 768], [844, 390]]) {
     await page.setViewportSize({ width, height });

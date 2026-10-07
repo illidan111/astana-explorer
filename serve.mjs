@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
+const publicFiles = new Set(['index.html', 'styles.css', 'app.js', 'data.js', 'favicon.svg']);
+const publicDirectories = new Set(['vendor', 'assets']);
+const isPublicPath = (segments) => publicDirectories.has(segments[0]?.toLowerCase())
+  || (segments.length === 1 && publicFiles.has(segments[0].toLowerCase()));
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -30,7 +34,7 @@ const server = http.createServer(async (request, response) => {
     const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
     const segments = pathname.split(/[\\/]/).filter(Boolean);
     if (segments.some((part) => part.startsWith('.') || part.includes(':'))
-      || ['node_modules', 'tests', 'test-results', 'playwright-report'].includes(segments[0]?.toLowerCase())) {
+      || (segments.length && !isPublicPath(segments))) {
       response.writeHead(404).end('Not found');
       return;
     }
@@ -38,7 +42,8 @@ const server = http.createServer(async (request, response) => {
     const resolved = await realpath(target);
     const relative = path.relative(root, resolved);
     const extension = path.extname(resolved).toLowerCase();
-    if (relative.startsWith('..') || path.isAbsolute(relative) || !types[extension]
+    if (relative.startsWith('..') || path.isAbsolute(relative)
+      || !isPublicPath(relative.split(path.sep)) || !types[extension]
       || !(await stat(resolved)).isFile()) {
       response.writeHead(404).end('Not found');
       return;

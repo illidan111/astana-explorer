@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="240" height="180" role="img" aria-labelledby="title">
+<title id="title">Дворец мира и согласия — авторская иллюстрация</title>
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#edf0e6"/><stop offset="1" stop-color="#faf5e9"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8d3c8"/><stop offset="1" stop-color="#628f81"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e6d19a"/><stop offset="1" stop-color="#b99550"/></linearGradient>
+  <symbol id="tree" viewBox="0 0 34 70"><path d="M17 36v32m0-17L8 40m9 16 9-18" stroke="#4c7460" stroke-width="1.4" fill="none"/><path d="M17 2C4 3-2 16 3 29c-6 13 3 22 14 21 13 2 22-11 15-22C36 14 28 2 17 2Z" fill="#7fa38b"/><path d="M17 14v36m0-20L9 23m8 13 8-11" stroke="#557b64" stroke-width="1.1" fill="none"/></symbol>
+  <symbol id="pine" viewBox="0 0 26 58"><path d="M13 40v18" stroke="#4c7460" stroke-width="1.4"/><path d="m13 0-8 18h4L1 35h6L0 49h26l-7-14h6l-8-17h4Z" fill="#5e8874"/><path d="M13 12v37m0-15-6-7m6 16 7-9" stroke="#8aaa8e" stroke-width="1" fill="none"/></symbol>
+  <symbol id="bush" viewBox="0 0 42 18"><path d="M1 17C-2 9 7 3 15 6c1-9 14-8 18 0 8-1 12 7 8 11Z" fill="#a0b59a"/><path d="m11 15 6-7m8 7 6-6" stroke="#718f75" stroke-width="1"/></symbol>
+  <symbol id="lamp" viewBox="0 0 10 38"><path d="M5 8v30M2 37h6" stroke="#557667" stroke-width="1.2"/><path d="M1 3h8L8 9H2Z" fill="#e4cf96" stroke="#557667" stroke-width="1"/><path d="M5 0v3" stroke="#557667" stroke-width="1"/></symbol>
+</defs>
+<rect width="240" height="180" fill="url(#sky)"/>
+<circle cx="184" cy="46" r="19" fill="#e4cf9e" opacity=".62"/>
+<g fill="none" stroke="#ced8ca" stroke-width="1.1" stroke-linecap="round"><path d="M18 39h24m-16 6h34M173 24h25m-6 6h26"/><path d="m37 65 3-2 3 2m107-25 3-2 3 2" stroke="#8da08c"/></g>
+<path d="M0 137Q47 125 88 137T168 135T240 136V180H0Z" fill="#dce4d3"/><path d="M0 156q64-13 116-3t124-6v33H0Z" fill="#cad8c1"/>
+
+<path d="M0 134q48-18 82-7t67-1 91 11v43H0Z" fill="#bdcfb8"/>
+<path d="M31 146h177l-21 10H53Z" fill="#e3e0cd"/>
+<path d="m119 40-74 99h150Z" fill="url(#glass)" stroke="#436f60" stroke-width="1.2"/>
+<path d="m119 40 7 99h69Z" fill="#426d62" opacity=".36"/>
+<path d="m119 40-25 33 50 1Z" fill="#e2d4a7" opacity=".8"/>
+<g fill="none" stroke="#e8e9d7" stroke-width=".9"><path d="m96 71 97 65M81 91l56 48m-73-25 26 25m53-68-97 65m112-45-56 48m73-25-25 25M91 77h57m-73 22h90m-107 22h124"/><path d="m119 40 7 99" stroke="#aac7b6"/></g>
+<path d="M101 139h37v7h-37Z" fill="#547868"/><path d="m115 146-50 34h100l-40-34" fill="#ebe3cf"/>
+<use href="#pine" x="18" y="90" width="22" height="49"/><use href="#pine" x="204" y="93" width="24" height="54"/>
+<use href="#tree" x="6" y="120" width="22" height="44"/><use href="#bush" x="42" y="152" width="43" height="18"/><use href="#bush" x="174" y="152" width="47" height="20"/>
+<path d="M10 174h34m148-4h38m-205-7h14" fill="none" stroke="#9caf91" stroke-width="1.1"/>
+
+</svg>

@@ -85,6 +85,12 @@ test('malformed and unavailable local storage do not break browsing', async ({ p
 test('coincident venue and event markers remain individually selectable', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await list(page);
+  await page.locator('[data-favorite-id="astana-opera"]').click();
+  await page.locator('[data-filter="event"]').click();
+  await page.locator('[data-favorite-id="demo-chamber-evening"]').click();
+  await page.locator('[data-filter="all"]').click();
+  await page.locator('#favorites-button').click();
+  await expect(page.locator('.attraction-list-button')).toHaveCount(2);
   await page.locator('.attraction-list-button[data-place-id="astana-opera"]').click();
   await page.locator('#explore-button').click();
   const venue = page.locator('[data-marker-id="astana-opera"]');
@@ -100,18 +106,33 @@ test('coincident venue and event markers remain individually selectable', async 
   await expect(page.locator('#card-notice')).toContainText('Демонстрационное событие');
 });
 
-test('modal contains keyboard focus and list favorite updates keep the focused control', async ({ page }) => {
+test('the phone detail sheet contains keyboard focus', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'The desktop inspector intentionally allows focus outside.');
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   const firstCard = await list(page);
   await firstCard.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#close-button')).toBeFocused();
   await page.keyboard.press('Shift+Tab');
-  await expect(page.locator('#favorite-toggle')).toBeFocused();
+  const detailsSummary = page.locator('#attraction-card .source-details > summary');
+  await expect(detailsSummary).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.locator('#close-button')).toBeFocused();
+  await detailsSummary.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#attraction-card .source-details')).toHaveAttribute('open', '');
+  await page.locator('#card-coordinate-source').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#close-button')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.locator('#card-coordinate-source')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(firstCard).toBeFocused();
+});
+
+test('list favorite updates keep the focused control and expose a recovery action', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await list(page);
   const favorite = page.locator('.list-favorite').first();
   await favorite.focus();
   await page.keyboard.press('Enter');
@@ -120,6 +141,8 @@ test('modal contains keyboard focus and list favorite updates keep the focused c
   await page.locator('#favorites-button').click();
   await favorite.focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator('#attraction-list button')).toBeFocused();
-  await expect(page.locator('#attraction-list')).toContainText('Ваши открытия');
+  await expect(page.locator('#attraction-list .empty-state button')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.attraction-list-button')).toHaveCount(12);
+  await expect(page.locator('#search-input')).toBeFocused();
 });

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="240" height="180" role="img" aria-labelledby="title">
+<title id="title">Океанариум Ailand — авторская иллюстрация</title>
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#edf0e6"/><stop offset="1" stop-color="#faf5e9"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8d3c8"/><stop offset="1" stop-color="#628f81"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e6d19a"/><stop offset="1" stop-color="#b99550"/></linearGradient>
+  <symbol id="tree" viewBox="0 0 34 70"><path d="M17 36v32m0-17L8 40m9 16 9-18" stroke="#4c7460" stroke-width="1.4" fill="none"/><path d="M17 2C4 3-2 16 3 29c-6 13 3 22 14 21 13 2 22-11 15-22C36 14 28 2 17 2Z" fill="#7fa38b"/><path d="M17 14v36m0-20L9 23m8 13 8-11" stroke="#557b64" stroke-width="1.1" fill="none"/></symbol>
+  <symbol id="pine" viewBox="0 0 26 58"><path d="M13 40v18" stroke="#4c7460" stroke-width="1.4"/><path d="m13 0-8 18h4L1 35h6L0 49h26l-7-14h6l-8-17h4Z" fill="#5e8874"/><path d="M13 12v37m0-15-6-7m6 16 7-9" stroke="#8aaa8e" stroke-width="1" fill="none"/></symbol>
+  <symbol id="bush" viewBox="0 0 42 18"><path d="M1 17C-2 9 7 3 15 6c1-9 14-8 18 0 8-1 12 7 8 11Z" fill="#a0b59a"/><path d="m11 15 6-7m8 7 6-6" stroke="#718f75" stroke-width="1"/></symbol>
+  <symbol id="lamp" viewBox="0 0 10 38"><path d="M5 8v30M2 37h6" stroke="#557667" stroke-width="1.2"/><path d="M1 3h8L8 9H2Z" fill="#e4cf96" stroke="#557667" stroke-width="1"/><path d="M5 0v3" stroke="#557667" stroke-width="1"/></symbol>
+</defs>
+<rect width="240" height="180" fill="url(#sky)"/>
+<circle cx="119" cy="32" r="19" fill="#e4cf9e" opacity=".62"/>
+<g fill="none" stroke="#ced8ca" stroke-width="1.1" stroke-linecap="round"><path d="M18 39h24m-16 6h34M173 24h25m-6 6h26"/><path d="m37 65 3-2 3 2m107-25 3-2 3 2" stroke="#8da08c"/></g>
+
+
+<path d="M0 71c34-12 72-4 100 0s62-14 140-7v116H0Z" fill="#84ada0"/>
+<path d="M0 91q50-10 92-3t81-3 67-6v101H0Z" fill="#608f83"/>
+<path d="M0 124q42-9 89-2t151-8v66H0Z" fill="#426f65"/>
+<g fill="none" stroke="#c4d9c3" stroke-width="1" opacity=".5"><path d="M18 53v66m28-73v55m110-58v55m38-46v45"/><circle cx="39" cy="101" r="3"/><circle cx="44" cy="83" r="2"/><circle cx="189" cy="123" r="3"/><circle cx="194" cy="112" r="2"/></g>
+<path d="M36 178v-32a84 84 0 0 1 168 0v32" fill="#b3c9ba" stroke="#dce2c9" stroke-width="2"/>
+<path d="M51 180v-30a69 69 0 0 1 138 0v30Z" fill="#355e56"/>
+<path d="M67 180v-29a53 53 0 0 1 106 0v29Z" fill="#6e9a8b"/>
+<path d="M82 180v-28a38 38 0 0 1 76 0v28Z" fill="#acc3ae"/>
+<path d="M94 180v-28a26 26 0 0 1 52 0v28Z" fill="#d0d9bd"/>
+<path d="m54 152 66 12 66-12m-66-70v82m-48-64 48 64 48-64m-96 79 48-15 48 15" stroke="#e6e5cb" stroke-width="1.1" fill="none" opacity=".75"/>
+<path d="m93 180 27-17 27 17" fill="#e7dec4"/>
+<g fill="#e3d5a4" stroke="#c6c69d" stroke-width=".8"><path d="M55 77q12-11 28-1l10-6-3 9 3 9-10-6q-16 11-28-5Z"/><path d="M165 59q-11-7-22 1l-8-4 3 6-3 6 8-4q11 8 22-5Z"/></g>
+<g fill="#bdd1b7"><path d="M163 101q14-11 29-2l11-6-4 10 4 10-11-6q-15 9-29-6Z"/><circle cx="51" cy="127" r="1.5"/><circle cx="66" cy="125" r="1.5"/></g>
+<path d="M14 174v-29m0 12-8-7m8 13 10-9m-5 20v-14m195 13v-32m0 14-8-8m8 16 10-10m-3 20v-17" stroke="#b79168" stroke-width="2" fill="none"/>
+<path d="M0 172q17-12 35-3v11H0m203-9q17-10 37 1v8h-37" fill="#426658"/>
+
+</svg>

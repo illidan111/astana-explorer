@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="240" height="180" role="img" aria-labelledby="title">
+<title id="title">Национальный музей Казахстана — авторская иллюстрация</title>
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#edf0e6"/><stop offset="1" stop-color="#faf5e9"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b8d3c8"/><stop offset="1" stop-color="#628f81"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e6d19a"/><stop offset="1" stop-color="#b99550"/></linearGradient>
+  <symbol id="tree" viewBox="0 0 34 70"><path d="M17 36v32m0-17L8 40m9 16 9-18" stroke="#4c7460" stroke-width="1.4" fill="none"/><path d="M17 2C4 3-2 16 3 29c-6 13 3 22 14 21 13 2 22-11 15-22C36 14 28 2 17 2Z" fill="#7fa38b"/><path d="M17 14v36m0-20L9 23m8 13 8-11" stroke="#557b64" stroke-width="1.1" fill="none"/></symbol>
+  <symbol id="pine" viewBox="0 0 26 58"><path d="M13 40v18" stroke="#4c7460" stroke-width="1.4"/><path d="m13 0-8 18h4L1 35h6L0 49h26l-7-14h6l-8-17h4Z" fill="#5e8874"/><path d="M13 12v37m0-15-6-7m6 16 7-9" stroke="#8aaa8e" stroke-width="1" fill="none"/></symbol>
+  <symbol id="bush" viewBox="0 0 42 18"><path d="M1 17C-2 9 7 3 15 6c1-9 14-8 18 0 8-1 12 7 8 11Z" fill="#a0b59a"/><path d="m11 15 6-7m8 7 6-6" stroke="#718f75" stroke-width="1"/></symbol>
+  <symbol id="lamp" viewBox="0 0 10 38"><path d="M5 8v30M2 37h6" stroke="#557667" stroke-width="1.2"/><path d="M1 3h8L8 9H2Z" fill="#e4cf96" stroke="#557667" stroke-width="1"/><path d="M5 0v3" stroke="#557667" stroke-width="1"/></symbol>
+</defs>
+<rect width="240" height="180" fill="url(#sky)"/>
+<circle cx="52" cy="43" r="19" fill="#e4cf9e" opacity=".62"/>
+<g fill="none" stroke="#ced8ca" stroke-width="1.1" stroke-linecap="round"><path d="M18 39h24m-16 6h34M173 24h25m-6 6h26"/><path d="m37 65 3-2 3 2m107-25 3-2 3 2" stroke="#8da08c"/></g>
+<path d="M0 137Q47 125 88 137T168 135T240 136V180H0Z" fill="#dce4d3"/><path d="M0 156q64-13 116-3t124-6v33H0Z" fill="#cad8c1"/>
+
+<path d="M13 147h216l-21 11H30Z" fill="#dfd7c1"/>
+<path d="M27 106h52v39H27Z" fill="#8bb1a0" stroke="#628b78" stroke-width="1"/>
+<path d="m76 74 51-13 37 29v55H76Z" fill="#e8e0c9" stroke="#a0aa90" stroke-width="1.1"/>
+<path d="m127 61 37 29v55h-17V93Z" fill="#c6c8b1"/>
+<path d="M151 96h62v49h-62Z" fill="#79a595" stroke="#527e6b" stroke-width="1"/>
+<path d="m145 92 66-8 13 9v14h-79Z" fill="#f4eedb" stroke="#a0aa90" stroke-width="1"/>
+<path d="m145 92 66-8 13 9-68 8Z" fill="#ded8bf"/>
+<path d="M78 106h64v39H78Z" fill="#497e70"/>
+<g stroke="#afc9b7" stroke-width=".9" fill="none"><path d="M88 107v37m12-37v37m12-37v37m12-37v37m12-37v37M78 118h64m-64 13h64m18-24v37m11-37v37m11-37v37m11-37v37m-44-24h53m-53 12h53M36 108v36m12-36v36m12-36v36m12-36v36m-43-24h50m-50 12h50"/></g>
+<path d="M88 86 123 77l19 15h-38Z" fill="#f9f3df"/><path d="m108 92 13-10 9 9" stroke="#b2ac8b" fill="none" stroke-width="1.1"/>
+<path d="M96 145h26v6H96Zm-7 6h40v4H89" fill="#bdbba0"/>
+<path d="m108 156-34 24h86l-45-24" fill="#efe5cf"/>
+<use href="#pine" x="7" y="106" width="17" height="38"/><use href="#tree" x="213" y="103" width="25" height="51"/>
+<use href="#bush" x="27" y="154" width="41" height="18"/><use href="#bush" x="173" y="156" width="46" height="20"/>
+
+</svg>

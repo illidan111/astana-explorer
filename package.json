@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node serve.mjs",
+    "check": "node scripts/check.mjs",
     "test": "playwright test",
     "test:ui": "playwright test --ui"
   },

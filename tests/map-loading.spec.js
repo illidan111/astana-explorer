@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { tileUrl, useLocalMapTiles } from './helpers/map-tiles.js';
 
 test('failed map library can be retried without losing the catalogue state', async ({ page }) => {
   const errors = [];
@@ -25,20 +26,27 @@ test('failed map library can be retried without losing the catalogue state', asy
 });
 
 test('stalled tiles after zoom report a timeout and retry recovers', async ({ page }) => {
+  // Real network coverage lives in explorer.spec.js. This scenario controls
+  // success, stalled requests, and recovery without depending on OSM latency.
+  await useLocalMapTiles(page);
   await page.goto('/');
   await expect(page.locator('.leaflet-tile-loaded').first()).toBeAttached({ timeout: 15000 });
   await expect(page.locator('#map-status')).toBeHidden({ timeout: 15000 });
   await page.clock.install();
   const held = [];
-  await page.route('https://tile.openstreetmap.org/**', (route) => { held.push(route); });
+  const holdTiles = (route) => { held.push(route); };
+  await page.route(tileUrl, holdTiles);
   await page.locator('#zoom-in').click();
   await expect.poll(() => held.length).toBeGreaterThan(0);
   await page.clock.fastForward(10500);
   await expect(page.locator('#map-status')).toContainText('Подложка карты недоступна');
   await expect(page.locator('#retry-map')).toBeVisible();
-  await page.unroute('https://tile.openstreetmap.org/**');
+  await page.unroute(tileUrl, holdTiles);
+  // Removing a route handler does not settle already intercepted requests.
+  // Close the stalled generation before retry creates a new tile layer.
+  await Promise.all(held.map((route) => route.abort('timedout')));
   await page.locator('#retry-map').click();
   await expect(page.locator('#map-status')).toBeHidden({ timeout: 15000 });
   await expect(page.locator('.leaflet-tile-loaded').first()).toBeAttached();
-  await expect(page.locator('.attraction-list-button')).toHaveCount(15);
+  await expect(page.locator('.attraction-list-button')).toHaveCount(12);
 });
