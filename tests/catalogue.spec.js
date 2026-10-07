@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import vm from 'node:vm';
 
 const journeys = [
@@ -11,7 +11,7 @@ const journeys = [
   { id: 'duman-entertainment-center', category: 'attraction', query: 'Думан', destination: '51.147018,71.415143', address: 'Коргалжынское шоссе, 2 · комплекс Ailand' }
 ];
 
-test('catalogue has real reviewed places, valid local icons and consistent demo host points', async () => {
+test('catalogue has reviewed places, licensed local photos, fallback icons and consistent demo host points', async () => {
   const context = {};
   vm.runInNewContext(await readFile('data.js', 'utf8') + '\nthis.catalogue = attractions; this.groups = categories;', context);
   const html = await readFile('index.html', 'utf8');
@@ -19,6 +19,7 @@ test('catalogue has real reviewed places, valid local icons and consistent demo 
   const examples = context.catalogue.filter(place => place.kind === 'event');
   expect(places).toHaveLength(12);
   expect(examples).toHaveLength(3);
+  expect(places.filter(place => place.image)).toHaveLength(11);
   expect(new Set(context.catalogue.map(place => place.id)).size).toBe(15);
   for (const place of places) {
     expect(place.demo).toBe(false);
@@ -35,7 +36,27 @@ test('catalogue has real reviewed places, valid local icons and consistent demo 
     expect(new URL(place.coordinateSourceUrl).protocol).toBe('https:');
     expect(place.googlePlaceId).toMatch(/^ChIJ[\w-]+$/);
     expect(place.routeQuery).toContain('Астана');
-    expect(place.image).toBeUndefined();
+    if (!place.image) {
+      expect(place.id).toBe('line-brew');
+      continue;
+    }
+    const image = place.image;
+    expect(image.src).toBe(`assets/photos/${place.id}.webp`);
+    expect(image.alt.trim().length).toBeGreaterThan(10);
+    expect(image.credit).toMatch(/^Фото: \S.+ · (?:уменьшено|кадрировано), WebP$/);
+    expect(new URL(image.creditUrl).protocol).toBe('https:');
+    expect(new URL(image.creditUrl).hostname).toBe('commons.wikimedia.org');
+    expect(new URL(image.creditUrl).pathname).toMatch(/^\/wiki\/File:/);
+    expect(image.license).toMatch(/^CC(?:0 1\.0| BY(?:-SA)? [234]\.0)$/);
+    expect(new URL(image.licenseUrl).protocol).toBe('https:');
+    expect(new URL(image.licenseUrl).hostname).toBe('creativecommons.org');
+    expect(new URL(image.licenseUrl).pathname).toMatch(/^\/(?:licenses\/by(?:-sa)?\/[234]\.0|publicdomain\/zero\/1\.0)/);
+    expect(Number.isInteger(image.width) && image.width > 0).toBe(true);
+    expect(Number.isInteger(image.height) && image.height > 0).toBe(true);
+    const photo = await readFile(image.src);
+    expect(photo.subarray(0, 4).toString('ascii')).toBe('RIFF');
+    expect(photo.subarray(8, 12).toString('ascii')).toBe('WEBP');
+    expect((await stat(image.src)).size).toBeLessThan(150 * 1024);
   }
   expect(new Set(places.map(place => place.description)).size).toBe(12);
   for (const event of examples) {
@@ -44,6 +65,7 @@ test('catalogue has real reviewed places, valid local icons and consistent demo 
     expect(event.coordinates).toEqual(venue.coordinates);
     expect(event.demo).toBe(true);
     expect(event.eventLabel).toContain('Пример');
+    expect(event.image).toBeUndefined();
   }
 });
 

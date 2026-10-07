@@ -10,7 +10,7 @@ test('the first catalogue screen shows useful results and every category is reac
   test.skip(testInfo.project.name !== 'desktop', 'Explicit viewport coverage runs once.');
   await useLocalMapTiles(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  for (const [width, height, minimumPlaces] of [[1440, 1000, 5], [390, 844, 3], [320, 568, 1], [320, 400, 1], [844, 390, 1], [768, 1024, 3]]) {
+  for (const [width, height, minimumPlaces] of [[1440, 1000, 4], [390, 844, 3], [320, 568, 1], [320, 400, 1], [844, 390, 1], [768, 1024, 3]]) {
     await page.setViewportSize({ width, height });
     await showList(page);
     const categories = page.locator('#filter-chips button');

@@ -60,6 +60,7 @@
   let hoveredPlaceId = null;
   let focusedPlaceId = null;
   let cardScrollPosition = 0;
+  let cardPhotoRevision = 0;
   const cardCloseContexts = [];
 
   try {
@@ -113,6 +114,145 @@
     });
   }
 
+  function photoForPlace(place) {
+    const image = (place.kind === 'event' ? placesById.get(place.venueId) : place)?.image;
+    return image && typeof image.src === 'string' && image.src
+      && Number.isFinite(image.width) && image.width > 0
+      && Number.isFinite(image.height) && image.height > 0 ? image : null;
+  }
+
+  function addListPhoto(thumbnail, place) {
+    const image = photoForPlace(place);
+    if (!image) {
+      thumbnail.classList.add('photo-unavailable');
+      return;
+    }
+    const photo = document.createElement('img');
+    photo.className = 'place-photo';
+    photo.alt = '';
+    photo.loading = 'lazy';
+    photo.decoding = 'async';
+    photo.width = image.width;
+    photo.height = image.height;
+    photo.addEventListener('load', () => thumbnail.classList.add('has-photo'), { once: true });
+    photo.addEventListener('error', () => {
+      thumbnail.classList.remove('has-photo');
+      thumbnail.classList.add('photo-unavailable');
+      photo.remove();
+    }, { once: true });
+    photo.src = image.src;
+    thumbnail.append(photo);
+  }
+
+  function renderCardPhoto(place) {
+    const previousPhoto = byId('card-photo');
+    if (!previousPhoto) return;
+    const revision = ++cardPhotoRevision;
+    const photo = previousPhoto.cloneNode(false);
+    previousPhoto.onload = null;
+    previousPhoto.onerror = null;
+    photo.removeAttribute('src');
+    photo.removeAttribute('srcset');
+    photo.alt = '';
+    photo.hidden = true;
+    previousPhoto.replaceWith(photo);
+    const wrapper = photo.closest('.card-photo-wrap');
+    const fallback = byId('card-photo-fallback');
+    const credit = byId('card-photo-credit');
+    const license = byId('card-photo-license');
+    wrapper?.classList.remove('has-photo', 'photo-unavailable');
+    wrapper?.style.setProperty('--category-color', categories[place.category].color);
+    if (fallback) {
+      fallback.innerHTML = icon(place.icon || place.category);
+      fallback.hidden = false;
+    }
+    if (credit) {
+      credit.hidden = true;
+      credit.textContent = '';
+      credit.removeAttribute('href');
+      credit.removeAttribute('aria-label');
+    }
+    if (license) {
+      license.hidden = true;
+      license.textContent = '';
+      license.removeAttribute('href');
+      license.removeAttribute('aria-label');
+    }
+    const image = photoForPlace(place);
+    if (!image) {
+      wrapper?.classList.add('photo-unavailable');
+      return;
+    }
+    photo.alt = image.alt || `Фотография: ${(place.kind === 'event' ? placesById.get(place.venueId) : place).name}`;
+    photo.loading = 'eager';
+    photo.decoding = 'async';
+    photo.width = image.width;
+    photo.height = image.height;
+    photo.onload = () => {
+      if (revision !== cardPhotoRevision || !photo.isConnected) return;
+      wrapper?.classList.add('has-photo');
+      if (fallback) fallback.hidden = true;
+      if (credit && image.credit && image.creditUrl) {
+        credit.textContent = image.credit;
+        credit.href = image.creditUrl;
+        credit.setAttribute('aria-label', `${image.credit}. Источник фотографии откроется в новой вкладке.`);
+        credit.hidden = false;
+      }
+      if (license && image.license && image.licenseUrl) {
+        license.textContent = image.license;
+        license.href = image.licenseUrl;
+        license.setAttribute('aria-label', `${image.license}. Лицензия фотографии откроется в новой вкладке.`);
+        license.hidden = false;
+      }
+    };
+    photo.onerror = () => {
+      if (revision !== cardPhotoRevision || !photo.isConnected) return;
+      photo.onload = null;
+      photo.onerror = null;
+      photo.hidden = true;
+      photo.removeAttribute('src');
+      wrapper?.classList.remove('has-photo');
+      wrapper?.classList.add('photo-unavailable');
+      if (fallback) fallback.hidden = false;
+      if (credit) credit.hidden = true;
+      if (license) license.hidden = true;
+    };
+    photo.hidden = false;
+    photo.src = image.src;
+  }
+
+  function updateSelectionNavigation() {
+    const results = getFilteredAttractions();
+    const index = results.findIndex((place) => place.id === selectedAttraction?.id);
+    const previous = index > 0 ? results[index - 1] : null;
+    const next = index >= 0 ? results[index + 1] : null;
+    [['previous-place', previous, 'Предыдущее место'], ['next-place', next, 'Следующее место']]
+      .forEach(([id, place, label]) => {
+        const button = byId(id);
+        if (!button) return;
+        button.disabled = !place;
+        button.setAttribute('aria-label', place ? `${label}: ${place.name}` : label);
+      });
+    const position = byId('selection-position');
+    if (position) position.textContent = index >= 0 ? `${index + 1} из ${results.length}` : '';
+  }
+
+  function navigatePlaces(direction, trigger = document.activeElement) {
+    const results = getFilteredAttractions();
+    const index = results.findIndex((place) => place.id === selectedAttraction?.id);
+    const place = index >= 0 ? results[index + direction] : null;
+    if (!place) return;
+    // Reuse selection, routing and share cancellation without changing the query,
+    // the list's scroll position, or the user's mobile view.
+    showAttraction(place, listItemsById.get(place.id).querySelector('.attraction-list-button'));
+    if (trigger instanceof HTMLElement && card.contains(trigger) && !trigger.disabled) {
+      trigger.focus({ preventScroll: true });
+    } else {
+      const fallback = byId(direction > 0 ? 'previous-place' : 'next-place');
+      (fallback && !fallback.disabled ? fallback : byId('close-button')).focus({ preventScroll: true });
+    }
+  }
+
   function buildListItem(place) {
     const item = document.createElement('li');
     item.className = 'attraction-list-item';
@@ -127,6 +267,7 @@
     thumbnail.style.setProperty('--category-color', categories[place.category].color);
     thumbnail.setAttribute('aria-hidden', 'true');
     thumbnail.innerHTML = icon(place.icon || place.category);
+    addListPhoto(thumbnail, place);
     const copy = document.createElement('span');
     copy.className = 'place-copy';
     const category = document.createElement('span');
@@ -275,6 +416,7 @@
     highlightSelection();
     if (fit) attractionList.scrollTop = 0;
     updateFavoriteButtons();
+    updateSelectionNavigation();
     if (fit && filtered.length) fitResults();
   }
 
@@ -396,11 +538,13 @@
     returnFocus = trigger || document.activeElement;
     byId('card-art').style.setProperty('--category-color', categories[place.category].color);
     byId('card-art').innerHTML = icon(place.icon || place.category);
+    renderCardPhoto(place);
     card.querySelector('.source-details').open = false;
     byId('card-category').textContent = place.eventLabel || categories[place.category].label;
     byId('card-name').textContent = place.name;
     const destination = place.kind === 'event' ? placesById.get(place.venueId) : place;
     byId('card-area').textContent = destination.address || destination.area;
+    if (byId('card-summary')) byId('card-summary').textContent = place.summary || place.description;
     byId('card-description').textContent = place.description;
     byId('card-tags').replaceChildren(...place.tags.map((tag) => {
       const element = document.createElement('span');
@@ -437,6 +581,7 @@
     byId('route-label').textContent = place.kind === 'event' ? 'Построить маршрут к площадке' : 'Построить маршрут';
     byId('route-hint').textContent = `Google Maps · ${destination.routeDestinationLabel || destination.name}. Укажите начало маршрута в Google Maps.`;
     updateFavoriteButtons();
+    updateSelectionNavigation();
     highlightSelection();
     if (!card.open) openAttractionCard();
     if (!mobile.matches) revealSelectedOnMap();
@@ -804,6 +949,14 @@
     focusSelectedOnMap();
   });
   byId('share-place')?.addEventListener('click', shareSelectedPlace);
+  byId('previous-place')?.addEventListener('click', (event) => navigatePlaces(-1, event.currentTarget));
+  byId('next-place')?.addEventListener('click', (event) => navigatePlaces(1, event.currentTarget));
+  card.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+      || event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    event.preventDefault();
+    navigatePlaces(event.key === 'ArrowRight' ? 1 : -1);
+  });
   [card, byId('info-dialog')].forEach((dialog) => {
     dialog.addEventListener('keydown', (event) => {
       if (dialog === card && !card.matches(':modal')) return;

@@ -2,7 +2,7 @@
  * Curated starter catalogue, reviewed 2026-10-05.
  * No live schedules, prices, ratings or opening status are implied.
  * Each real place records its reviewed address/area, point label and sources.
- * Evidence and image policy: docs/catalogue.md. No third-party photos are used.
+ * Catalogue evidence: docs/catalogue.md. Photo credits: docs/image-credits.md.
  * Coordinates were checked against published venue points on 2026-10-05.
  * coordinateSourceUrl records the map source independently of the place's
  * information page. Visit Astana coordinates are its embedded ymaps.Placemark
@@ -31,6 +31,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'attraction',
     summary: 'Смотровая площадка с видом на бульвар и левый берег.',
+    image: {
+      "src": "assets/photos/baiterek.webp",
+      "alt": "Золотой шар и ажурная конструкция монумента Байтерек.",
+      "width": 800,
+      "height": 533,
+      "credit": "Фото: Quarot · кадрировано, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:Baiterek_August.jpg",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
     description: 'Поднимитесь на смотровую площадку внутри золотого шара, чтобы увидеть бульвар Нуржол и застройку левого берега сверху. У подножия можно рассмотреть конструкцию монумента и снять его на фоне города.',
     icon: 'attraction',
     address: 'Бульвар Нуржол, 14',
@@ -53,6 +63,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'shopping',
     summary: 'Магазины, кинотеатр и фудкорт под шатром Нормана Фостера.',
+    image: {
+      "src": "assets/photos/khan-shatyr.webp",
+      "alt": "Шатёр торгового центра Хан Шатыр.",
+      "width": 800,
+      "height": 533,
+      "credit": "Фото: Quarot · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:Khan_Shatyr.jpg",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
     description: 'Рассмотрите наклонный шатёр Нормана Фостера снаружи, а внутри найдите магазины, фудкорт и кинотеатр. Подойдёт для сочетания архитектурной прогулки с отдыхом под крышей.',
     icon: 'tent',
     address: 'Проспект Туран, 37',
@@ -75,6 +95,16 @@ const attractions = [
     coordinateSourceUrl: 'https://yandex.kz/maps/org/abu_nasyr_al_farabi_meshiti/1089167953/',
     category: 'attraction',
     summary: 'Золотой купол, четыре минарета и двор с фонтанами.',
+    image: {
+      "src": "assets/photos/nur-astana-mosque.webp",
+      "alt": "Золотой купол и минареты мечети Абу Насыр аль-Фараби за осенними деревьями.",
+      "width": 800,
+      "height": 410,
+      "credit": "Фото: Vyacheslav Bukharov · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:Astana-2021-10_-_41.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
     description: 'Рассмотрите золотой купол, четыре минарета и двор с двумя фонтанами. Мечеть, ранее называвшаяся «Нур-Астана», интересна сочетанием белых фасадов и исламского декора. Правила входа внутрь уточните у мечети.',
     icon: 'mosque',
     address: 'Проспект Кабанбай батыра, 36',
@@ -97,6 +127,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/dvorets-mira-i-soglasiya/',
     category: 'attraction',
     summary: 'Стеклянная пирамида и парк для прогулки и фотографий.',
+    image: {
+      "src": "assets/photos/palace-of-peace-and-reconciliation.webp",
+      "alt": "Пирамида Дворца мира и согласия с дорожками окружающего парка.",
+      "width": 800,
+      "height": 533,
+      "credit": "Фото: Davide Mauro · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:Presidential_Park_04.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
     description: 'Стеклянная пирамида Нормана Фостера с геометрическими фасадами; её удобно рассматривать и фотографировать из окружающего парка. Внутри есть выставочные и концертные залы — доступ и программу уточните перед визитом.',
     icon: 'pyramid',
     address: 'Проспект Тауелсиздик, 57',
@@ -119,6 +159,16 @@ const attractions = [
     coordinateSourceUrl: 'https://alem.ai/ru/',
     category: 'culture',
     summary: 'Сфера EXPO и интерактивный Музей сингулярности об ИИ.',
+    image: {
+      "src": "assets/photos/expo-nur-alem.webp",
+      "alt": "Сфера Нур Алем на фоне грозового неба.",
+      "width": 800,
+      "height": 450,
+      "credit": "Фото: Vadimure · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:Storm_over_Astana_1.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
     description: 'Сфера EXPO-2017 теперь вмещает центр искусственного интеллекта alem.ai. На первом этаже — Музей сингулярности с интерактивными и иммерсивными экспозициями об ИИ. Можно осмотреть сферу снаружи или запланировать посещение музея.',
     icon: 'sphere',
     address: 'Проспект Мангилик Ел, блок B1 · EXPO',
@@ -141,6 +191,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/tsentralnyy-park/',
     category: 'park',
     summary: 'Аллеи, берег Есиля, велодорожки и детские площадки.',
+    image: {
+      "src": "assets/photos/central-park.webp",
+      "alt": "Берег Есиля у восточной стороны Центрального парка.",
+      "width": 800,
+      "height": 600,
+      "credit": "Фото: Vmenkov · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:Astana-Ishim-River-Lake-7793.jpg",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
     description: 'Пройдитесь по аллеям среди деревьев и выйдите к берегу Есиля. В парке есть велосипедные и беговые дорожки, детские площадки и зоны отдыха: можно выбрать спокойную прогулку или провести время с детьми.',
     icon: 'park',
     pointLabel: 'Прогулочная зона внутри парка',
@@ -162,6 +222,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/teatr-opery-i-baleta-astana-opera/',
     category: 'culture',
     summary: 'Опера, балет и концерты в театре с колоннадой.',
+    image: {
+      "src": "assets/photos/astana-opera.webp",
+      "alt": "Главный фасад Астана Опера с колоннадой.",
+      "width": 800,
+      "height": 600,
+      "credit": "Фото: Nikolamikovic82 · кадрировано, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:The_State_Opera_and_Ballet_Theatre_%E2%80%9CAstana_Opera%E2%80%9D.jpg",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
     description: 'Осмотрите театр с колоннадой и казахскими мотивами в оформлении. Чтобы увидеть сцену и интерьеры, выберите оперу, балет или концерт в официальной афише; для прогулки без спектакля интересен сам фасад.',
     icon: 'theater',
     address: 'Улица Динмухамеда Кунаева, 1',
@@ -186,6 +256,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/map/',
     category: 'culture',
     summary: 'История Казахстана, археологические находки и работы художников.',
+    image: {
+      "src": "assets/photos/national-museum-of-kazakhstan.webp",
+      "alt": "Главный зал Национального музея Казахстана с золотым орлом под потолком.",
+      "width": 800,
+      "height": 600,
+      "credit": "Фото: Davide Mauro · кадрировано, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:National_Museum_of_the_Republic_of_Kazakhstan_01.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
     description: 'Рассмотрите археологические находки, познакомьтесь с историей Казахстана и работами художников в музейных залах. Подойдёт для вдумчивого знакомства со страной; состав экспозиций и временные выставки проверьте на сайте музея.',
     icon: 'culture',
     address: 'Проспект Тауелсиздик, 54',
@@ -208,6 +288,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/mega-silk-way/',
     category: 'shopping',
     summary: 'Магазины, рестораны, кино и детские развлечения рядом с EXPO.',
+    image: {
+      "src": "assets/photos/mega-silk-way.webp",
+      "alt": "Вход в торговый центр MEGA Silk Way.",
+      "width": 800,
+      "height": 450,
+      "credit": "Фото: RG72 · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:A%C4%89etcentro_SilkWay_(Astano)_01.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
     description: 'Магазины, рестораны, кинотеатр и детские развлечения рядом с EXPO. Здесь можно поесть и отдохнуть под крышей до или после посещения сферы Нур Алем.',
     icon: 'shopping',
     address: 'Проспект Кабанбай батыра, 62',
@@ -252,6 +342,16 @@ const attractions = [
     coordinateSourceUrl: 'https://yandex.kz/maps/org/mukhitaral/216784633350/',
     category: 'attraction',
     summary: 'Подводный тоннель, акулы, черепахи и другие морские обитатели.',
+    image: {
+      "src": "assets/photos/duman-entertainment-center.webp",
+      "alt": "Акула и дайвер за стеклом океанариума Ailand.",
+      "width": 800,
+      "height": 600,
+      "credit": "Фото: Мазур Владимир · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:%D0%9E%D0%BA%D0%B5%D0%B0%D0%BD%D0%B0%D1%80%D0%B8%D1%83%D0%BC_%D0%90%D1%81%D1%82%D0%B0%D0%BD%D0%B0_2018_1.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
     description: 'Пройдите по прозрачному подводному тоннелю и понаблюдайте за акулами, черепахами и другими морскими обитателями. Океанариум расположен в комплексе Ailand, ранее известном как «Думан», и подходит для семейного посещения под крышей.',
     icon: 'fish',
     address: 'Коргалжынское шоссе, 2 · комплекс Ailand',
@@ -275,6 +375,16 @@ const attractions = [
     coordinateSourceUrl: 'https://visitastana.kz/ru/about-city/what-to-see/prezidentskiy-park/',
     category: 'park',
     summary: 'Прогулочные дорожки и виды на Дворец мира и согласия.',
+    image: {
+      "src": "assets/photos/presidential-park.webp",
+      "alt": "Зелёные дорожки и водоёмы Президентского парка с пирамидой вдали.",
+      "width": 800,
+      "height": 533,
+      "credit": "Фото: Davide Mauro · уменьшено, WebP",
+      "creditUrl": "https://commons.wikimedia.org/wiki/File:Presidential_Park_01.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
     description: 'Прогуляйтесь по дорожкам и открытым зелёным пространствам вокруг Дворца мира и согласия. Отсюда можно рассмотреть пирамиду с разных сторон и совместить архитектурную фотопрогулку с отдыхом в парке.',
     icon: 'park',
     pointLabel: 'Прогулочная зона западнее пирамиды',
