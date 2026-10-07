@@ -19,6 +19,7 @@ test('map, catalogue, responsive layout and accessibility', async ({ page }, tes
   page.on('requestfailed', (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText }));
   page.on('response', (response) => { if (response.status() >= 400) errorResponses.push({ url: response.url(), status: response.status() }); });
   await page.goto('/');
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await expect(page.locator('#search-input')).toBeVisible();
   await expect(page.locator('#map .leaflet-tile-pane')).toBeAttached();
   await mkdir('.qa', { recursive: true });
@@ -112,12 +113,14 @@ test('a category marker opens details and map controls respond', async ({ page }
 test('theme persists and detail route is a real external destination', async ({ page }, testInfo) => {
   await useLocalMapTiles(page);
   await page.goto('/');
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await expect(page.locator('#map .leaflet-tile-pane')).toBeAttached();
   const initialTheme = await page.locator('html').getAttribute('data-theme');
   await page.locator('#theme-toggle').click();
   const nextTheme = initialTheme === 'dark' ? 'light' : 'dark';
   await expect(page.locator('html')).toHaveAttribute('data-theme', nextTheme);
   await page.reload();
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', nextTheme);
   await expect(page.locator('.leaflet-tile-loaded').first()).toBeAttached({ timeout: 15000 });
   await expect(page.locator('#map-status')).toBeHidden({ timeout: 15000 });

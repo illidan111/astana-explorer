@@ -9,6 +9,7 @@ test('compact phone, tablet and landscape keep controls within the viewport', as
   for (const [width, height] of [[320, 568], [768, 1024], [1024, 768], [844, 390]]) {
     await page.setViewportSize({ width, height });
     await expect(page.locator('#search-input')).toBeVisible();
+    if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
     for (const selector of ['#theme-toggle', '#favorites-button', '#fit-map', '#find-me-button', '#zoom-in', '#zoom-out']) {
       const control = page.locator(selector);
       await expect(control).toBeVisible();

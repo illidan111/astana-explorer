@@ -72,6 +72,7 @@ test('catalogue has reviewed places, licensed local photos, fallback icons and c
 for (const journey of journeys) {
   test(`map → category → search → details → route: ${journey.id}`, async ({ page, context }) => {
     await page.goto('/');
+    if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
     await expect(page.locator('#map .leaflet-tile-pane')).toBeAttached();
     await page.locator(`[data-filter="${journey.category}"]`).click();
     await page.locator('#search-input').fill(journey.query);

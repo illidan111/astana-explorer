@@ -22,7 +22,16 @@ async function expectMarkerUsable(page, id) {
   await expect(marker).toHaveClass(/is-selected/);
 }
 
-test('desktop inspector links selection to the map and keeps map controls and markers usable', async ({ page }, testInfo) => {
+async function expectControlUsable(control) {
+  await expect(control).toBeInViewport({ ratio: .99 });
+  expect(await control.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return hit === element || element.contains(hit);
+  })).toBe(true);
+}
+
+test('desktop map inspector keeps the catalogue clickable and returns focus to the selected card', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'This is the desktop inspector workflow.');
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -30,14 +39,18 @@ test('desktop inspector links selection to the map and keeps map controls and ma
   await page.locator('[data-place-id="baiterek"]').click();
   const card = page.locator('#attraction-card');
   await expect(card).toBeVisible();
+  await expect(page.locator('#map-panel-inspector > #attraction-card')).toBeVisible();
   expect(await card.evaluate((dialog) => dialog.matches(':modal'))).toBe(false);
   await expect(card).toHaveAttribute('aria-modal', 'false');
+  for (const id of ['fit-map', 'find-me-button', 'zoom-in', 'zoom-out']) {
+    await expectControlUsable(page.locator(`#${id}`));
+  }
   await expectMarkerUsable(page, 'baiterek');
   await expect(page.locator('[data-place-id="baiterek"]')).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('.place-map-label').filter({ hasText: /^Байтерек$/ })).toBeVisible();
 
-  const marker = page.locator('[data-marker-id="nur-astana-mosque"]');
-  await marker.click();
+  const secondCard = page.locator('[data-place-id="nur-astana-mosque"]');
+  await secondCard.click();
   await expect(page.locator('#card-name')).toHaveText('Мечеть Абу Насыр аль-Фараби');
   await expectMarkerUsable(page, 'nur-astana-mosque');
   await expect(page.locator('[data-place-id="baiterek"]')).toHaveAttribute('aria-current', 'false');
@@ -45,8 +58,61 @@ test('desktop inspector links selection to the map and keeps map controls and ma
   await page.locator('#zoom-in').click();
   await expect(card).toBeVisible();
   await expectMarkerUsable(page, 'nur-astana-mosque');
+  await page.locator('#close-button').click();
+  await expect(secondCard).toBeFocused();
+  await expectMarkerUsable(page, 'nur-astana-mosque');
   expect(errors).toEqual([]);
 });
+
+test('split map and the primary route remain immediately usable in short desktop windows', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Explicit desktop sizes run once.');
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 820, height: 600 }]) {
+    await page.setViewportSize(viewport);
+    await openCatalogue(page);
+    await page.locator('[data-place-id="baiterek"]').click();
+    await expectMarkerUsable(page, 'baiterek');
+    await expectControlUsable(page.locator('#route-button'));
+    await expectControlUsable(page.locator('#close-button'));
+  }
+});
+
+for (const width of [844, 1024, 1440]) {
+  test(`very short ${width}×390 windows use a usable sheet and restore the desktop inspector`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'Explicit short desktop sizes run once.');
+    await page.setViewportSize({ width, height: 390 });
+    await openCatalogue(page);
+    const opener = page.locator('[data-place-id="nur-astana-mosque"]');
+    await opener.click();
+    const card = page.locator('#attraction-card');
+    await expect(card).toHaveAttribute('data-presentation', 'sheet');
+    await expect(card).toHaveAttribute('aria-modal', 'true');
+    expect(await card.evaluate((dialog) => dialog.matches(':modal') && dialog.parentElement === document.body)).toBe(true);
+    await expect(page.locator('#card-name')).toHaveText('Мечеть Абу Насыр аль-Фараби');
+    for (const id of ['card-name', 'route-button', 'close-button']) {
+      await expectControlUsable(page.locator(`#${id}`));
+    }
+    expect(await page.locator('.map-region').evaluate((region) => region.scrollHeight - region.clientHeight)).toBeLessThanOrEqual(1);
+
+    await page.locator('#favorite-toggle').focus();
+    await page.setViewportSize({ width, height: 600 });
+    await expect(card).toHaveAttribute('data-presentation', 'inspector');
+    await expect(card).toHaveAttribute('aria-modal', 'false');
+    await expect(page.locator('#map-panel-inspector > #attraction-card')).toBeVisible();
+    await expect(page.locator('#favorite-toggle')).toBeFocused();
+    await expect(page.locator('#card-name')).toHaveText('Мечеть Абу Насыр аль-Фараби');
+    for (const id of ['card-name', 'route-button', 'close-button']) {
+      await expectControlUsable(page.locator(`#${id}`));
+    }
+    await expectMarkerUsable(page, 'nur-astana-mosque');
+    const bounds = await page.locator('#map-panel-inspector').evaluate((inspector) => ({
+      bottom: inspector.getBoundingClientRect().bottom,
+      regionBottom: inspector.closest('.map-region').getBoundingClientRect().bottom
+    }));
+    expect(bounds.bottom).toBeLessThanOrEqual(bounds.regionBottom);
+    await page.locator('#close-button').click();
+    await expect(opener).toBeFocused();
+  });
+}
 
 test('search, categories and favorites dismiss excluded desktop details without stealing focus', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Mobile controls are behind a modal sheet.');
@@ -82,7 +148,7 @@ test('desktop keyboard can leave the inspector and reach search while it remains
   await openCatalogue(page);
   const opener = page.locator('[data-place-id="baiterek"]');
   await opener.click();
-  await page.locator('#attraction-card .source-details summary').focus();
+  await page.locator('#share-place').focus();
   await page.keyboard.press('Tab');
   expect(await page.locator('#attraction-card').evaluate((dialog) => dialog.contains(document.activeElement))).toBe(false);
   await page.keyboard.press('/');
@@ -115,6 +181,9 @@ test('crossing the mobile breakpoint preserves the selected place, share state, 
     await page.setViewportSize(viewport);
     const modal = viewport.width <= 760;
     await expect.poll(() => page.locator('#attraction-card').evaluate((dialog) => dialog.matches(':modal'))).toBe(modal);
+    await expect(page.locator('#attraction-card')).toHaveAttribute('data-presentation', modal ? 'sheet' : 'inspector');
+    expect(await page.locator('#attraction-card').evaluate((dialog) => dialog.parentElement.id || dialog.parentElement.tagName))
+      .toBe(modal ? 'BODY' : 'map-panel-inspector');
     await expect(page.locator('#card-name')).toHaveText('Байтерек');
     await expect(page.locator('#share-fallback')).toBeVisible();
     await expect(input).toHaveValue(value);
@@ -185,7 +254,7 @@ test('mobile details keep the list view, trap keyboard navigation and reveal the
   await expect(page.locator('body')).toHaveAttribute('data-mobile-view', 'list');
   await page.locator('#close-button').focus();
   await page.keyboard.press('Shift+Tab');
-  await expect(page.locator('#attraction-card .source-details summary')).toBeFocused();
+  await expect(page.locator('#share-place')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.locator('#close-button')).toBeFocused();
   await page.locator('#explore-button').click();

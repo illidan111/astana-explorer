@@ -6,6 +6,31 @@ async function openList(page) {
   if (await page.locator('#view-list').isVisible()) await page.locator('#view-list').click();
 }
 
+async function markerContext(page, id, referenceId) {
+  return page.locator('#map').evaluate((map, { id, referenceId }) => {
+    const bounds = map.getBoundingClientRect();
+    const markers = [...map.querySelectorAll('.attraction-icon[data-marker-id]')];
+    const selected = markers.find((marker) => marker.dataset.markerId === id);
+    const reference = markers.find((marker) => referenceId
+      ? marker.dataset.markerId === referenceId : marker.dataset.markerId !== id);
+    if (!selected || !reference) return null;
+    const rect = selected.getBoundingClientRect();
+    const other = reference.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return {
+      referenceId: reference.dataset.markerId,
+      offsetX: x - bounds.left - bounds.width / 2,
+      offsetY: y - bounds.top - bounds.height / 2,
+      distance: Math.hypot(x - other.left - other.width / 2, y - other.top - other.height / 2),
+      uncovered: rect.left >= bounds.left && rect.right <= bounds.right
+        && rect.top >= bounds.top && rect.bottom <= bounds.bottom
+        && (hit === selected || selected.contains(hit))
+    };
+  }, { id, referenceId });
+}
+
 test('saving an inline favorite preserves the current place in a long list', async ({ page }) => {
   await openList(page);
   const favorite = page.locator('.list-favorite[data-favorite-id="presidential-park"]');
@@ -79,9 +104,11 @@ test('an active category can be toggled off without discarding the search', asyn
 
 test('closing details retains query, category, list position and the selected map context', async ({ page }) => {
   await openList(page);
+  await expect(page.locator('#map')).toHaveAttribute('aria-busy', 'false');
   await page.locator('[data-filter="attraction"]').click();
   await page.locator('#search-input').fill('а');
   const last = page.locator('.attraction-list-button').last();
+  const selectedId = await last.getAttribute('data-place-id');
   await last.scrollIntoViewIfNeeded();
   const beforeScroll = await page.locator('#attraction-list').evaluate((list) => list.scrollTop);
   const beforeView = await page.locator('body').getAttribute('data-mobile-view');
@@ -89,14 +116,29 @@ test('closing details retains query, category, list position and the selected ma
   await last.click();
   await expect(page.locator('#attraction-card')).toBeVisible();
   await expect(page.locator('.leaflet-zoom-anim')).toHaveCount(0);
-  const selectedPane = await page.locator('.leaflet-map-pane').getAttribute('style');
+  const mapVisible = await page.locator('#map').isVisible();
+  // A user may adjust the map while reading desktop details. Closing its split
+  // panel must retain that geographic view as the map canvas grows again.
+  if (mapVisible) await page.locator('#zoom-out').click();
+  await expect.poll(() => markerContext(page, selectedId)).not.toBeNull();
+  const selectedContext = await markerContext(page, selectedId);
   await page.keyboard.press('Escape');
   await expect(last).toBeFocused();
   await expect(page.locator('#search-input')).toHaveValue('а');
   await expect(page.locator('[data-filter="attraction"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('body')).toHaveAttribute('data-mobile-view', beforeView);
   expect(await page.locator('#attraction-list').evaluate((list) => list.scrollTop)).toBe(beforeScroll);
-  await expect(page.locator('.leaflet-map-pane')).toHaveAttribute('style', selectedPane);
+  await expect(last).toHaveAttribute('aria-current', 'true');
+  await expect.poll(async () => {
+    const current = await markerContext(page, selectedId, selectedContext.referenceId);
+    if (!current) return Infinity;
+    return Math.max(Math.abs(current.offsetX - selectedContext.offsetX),
+      Math.abs(current.offsetY - selectedContext.offsetY),
+      Math.abs(current.distance - selectedContext.distance));
+  }, { message: 'Closing details must retain the map centre and the scale between real place markers' }).toBeLessThanOrEqual(2);
+  if (mapVisible) {
+    expect((await markerContext(page, selectedId, selectedContext.referenceId)).uncovered).toBe(true);
+  }
 });
 
 test('rapid searches supersede cluster expansion and leave map and list in agreement', async ({ page }) => {
@@ -128,6 +170,7 @@ test('rapid searches supersede cluster expansion and leave map and list in agree
 
 test('result changes are announced in map view and markers have usable accessible names', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await expect(page.locator('[data-filter="park"]')).toBeVisible();
   await page.locator('[data-filter="park"]').click();
   const status = page.getByRole('status').filter({ hasText: 'Найдено объектов: 2.' });
@@ -144,6 +187,7 @@ test('result changes are announced in map view and markers have usable accessibl
 
 test('map marker buttons open with Enter and Space and restore keyboard focus', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await page.locator('#search-input').fill('Байтерек');
   const marker = page.locator('[data-marker-id="baiterek"]');
   await expect(marker).toBeVisible();

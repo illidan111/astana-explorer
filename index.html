@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Карта мест Астаны: достопримечательности, парки, музеи, рестораны и торговые центры. Поиск, избранное и маршруты.">
-  <meta name="theme-color" content="#153e35">
+  <meta name="theme-color" content="#182526">
   <title>Astana Explorer — куда сходить в Астане</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <script>
@@ -23,7 +23,7 @@
   <script defer src="data.js"></script>
   <script defer src="app.js"></script>
 </head>
-<body data-mobile-view="map">
+<body data-mobile-view="list">
   <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
     <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
@@ -63,6 +63,12 @@
       <span class="brand-symbol"><svg class="icon brand-mark" aria-hidden="true"><use href="#icon-compass"/></svg></span>
       <h1 class="brand-name">Astana <span>Explorer</span></h1>
     </div>
+    <div class="search-wrap header-search">
+      <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+      <input class="search-input" id="search-input" type="search" placeholder="Название или адрес" aria-label="Поиск по названию, адресу и описанию" autocomplete="off" maxlength="150">
+      <button class="clear-search" id="clear-search" aria-label="Очистить поиск" hidden><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
+      <span class="search-shortcut" aria-hidden="true">/</span>
+    </div>
     <div class="header-actions">
       <span class="city-label"><svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg>Астана, Казахстан</span>
       <button class="text-button" id="favorites-button" aria-pressed="false" aria-label="Показать избранное"><svg class="icon bookmark-icon" aria-hidden="true"><use href="#icon-bookmark"/></svg><span class="favorites-label">Избранное</span><span class="favorite-count" id="favorite-count">0</span></button>
@@ -71,13 +77,7 @@
     </div>
   </header>
   <main class="workspace">
-    <section class="toolbar" aria-label="Поиск и категории">
-      <div class="catalogue-heading"><span class="eyebrow">Городской гид</span><h2>Места Астаны</h2></div>
-      <div class="search-wrap">
-        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-        <input class="search-input" id="search-input" type="search" placeholder="Название или адрес" aria-label="Поиск по названию, адресу и описанию" autocomplete="off" maxlength="150">
-        <button class="clear-search" id="clear-search" aria-label="Очистить поиск" hidden><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></button>
-      </div>
+    <section class="toolbar" aria-label="Категории мест">
       <div class="filter-chips" id="filter-chips" role="group" aria-label="Категории мест и событий"></div>
     </section>
     <p class="sr-only" id="results-status" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -101,27 +101,23 @@
             <button class="icon-button" id="next-place" aria-label="Следующее место" title="Следующее место"><svg class="icon" aria-hidden="true"><use href="#icon-forward"/></svg></button>
           </div>
         </div>
-        <div class="card-photo-wrap">
-          <img id="card-photo" width="800" height="500" alt="" decoding="async" hidden>
-          <span id="card-photo-fallback" aria-hidden="true"><svg class="icon"><use href="#icon-pin"/></svg></span>
-        </div>
-        <div class="photo-provenance">
-          <a id="card-photo-credit" class="photo-credit" target="_blank" rel="noopener noreferrer" hidden></a>
-          <a id="card-photo-license" class="photo-license" target="_blank" rel="noopener noreferrer" hidden></a>
+        <div class="card-overview">
+          <div class="card-photo-wrap">
+            <img id="card-photo" width="800" height="500" alt="" decoding="async" hidden>
+            <span id="card-photo-fallback" aria-hidden="true"><svg class="icon"><use href="#icon-pin"/></svg></span>
+          </div>
+          <div class="photo-provenance">
+            <a id="card-photo-credit" class="photo-credit" target="_blank" rel="noopener noreferrer" hidden></a>
+            <a id="card-photo-license" class="photo-license" target="_blank" rel="noopener noreferrer" hidden></a>
+          </div>
+          <div class="card-title-block">
+            <div class="card-heading"><div class="card-art" id="card-art" aria-hidden="true"></div><span class="card-category" id="card-category"></span></div>
+            <h2 class="card-name" id="card-name"></h2>
+            <p class="card-area"><svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg><span id="card-area"></span></p>
+          </div>
+          <p class="card-summary" id="card-summary"></p>
         </div>
         <div class="card-body">
-          <div class="card-heading"><div class="card-art" id="card-art" aria-hidden="true"></div><span class="card-category" id="card-category"></span></div>
-          <h2 class="card-name" id="card-name"></h2>
-          <p class="card-area"><svg class="icon" aria-hidden="true"><use href="#icon-pin"/></svg><span id="card-area"></span></p>
-          <p class="card-summary" id="card-summary"></p>
-
-          <div class="card-actions">
-            <a class="primary-button" id="route-button" target="_blank" rel="noopener noreferrer" aria-describedby="route-hint"><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><span id="route-label">Построить маршрут</span><span class="sr-only"> — откроется в новой вкладке</span></a>
-            <button class="secondary-button" id="explore-button"><svg class="icon" aria-hidden="true"><use href="#icon-map"/></svg>На карте</button>
-            <button class="secondary-button" id="favorite-toggle" aria-pressed="false"><svg class="icon bookmark-icon" aria-hidden="true"><use href="#icon-bookmark"/></svg><span id="favorite-label">Сохранить</span></button>
-            <button class="secondary-button" id="share-place"><svg class="icon" aria-hidden="true"><use href="#icon-share"/></svg>Поделиться</button>
-          </div>
-          <p class="route-hint" id="route-hint"></p>
           <p class="share-status" id="share-status" role="status" aria-live="polite" hidden></p>
           <div class="share-fallback" id="share-fallback" hidden><label for="share-url">Ссылка на это место</label><input id="share-url" type="text" readonly aria-label="Ссылка на это место"><span>Скопируйте ссылку и отправьте друзьям.</span></div>
           <div class="card-tags" id="card-tags"></div>
@@ -137,25 +133,38 @@
             <p class="card-verified" id="card-verified"></p>
           </div></details>
         </div>
+        <footer class="card-footer">
+          <div class="card-actions">
+            <a class="primary-button" id="route-button" target="_blank" rel="noopener noreferrer" aria-describedby="route-hint"><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><span id="route-label">Построить маршрут</span><span class="sr-only"> — откроется в новой вкладке</span></a>
+            <button class="secondary-button" id="explore-button" title="Показать место на карте"><svg class="icon" aria-hidden="true"><use href="#icon-map"/></svg>На карте</button>
+            <button class="secondary-button" id="favorite-toggle" aria-pressed="false" title="Сохранить место"><svg class="icon bookmark-icon" aria-hidden="true"><use href="#icon-bookmark"/></svg><span id="favorite-label">Сохранить</span></button>
+            <button class="secondary-button" id="share-place" title="Поделиться местом"><svg class="icon" aria-hidden="true"><use href="#icon-share"/></svg>Поделиться</button>
+          </div>
+          <p class="route-hint" id="route-hint"></p>
+        </footer>
       </dialog>
     </section>
     <section class="map-region" aria-label="Карта Астаны">
-      <div id="map" role="region" aria-label="Интерактивная карта. Стрелки — перемещение, плюс и минус — масштаб."></div>
-      <div class="map-controls" aria-label="Управление картой">
-        <button class="icon-button" id="fit-map" aria-label="Показать все найденные места" title="Показать все найденные места"><svg class="icon" aria-hidden="true"><use href="#icon-fit"/></svg></button>
-        <button class="icon-button" id="find-me-button" aria-label="Моё местоположение" aria-busy="false" title="Моё местоположение"><svg class="icon" aria-hidden="true"><use href="#icon-locate"/></svg></button>
-        <button class="icon-button" id="zoom-in" aria-label="Приблизить карту" title="Приблизить карту"><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg></button>
-        <button class="icon-button" id="zoom-out" aria-label="Отдалить карту" title="Отдалить карту"><svg class="icon" aria-hidden="true"><use href="#icon-minus"/></svg></button>
+      <div class="map-panel-heading"><h2>Астана на карте</h2><span>Выберите точку</span></div>
+      <div class="map-canvas">
+        <div id="map" role="region" aria-label="Интерактивная карта. Стрелки — перемещение, плюс и минус — масштаб."></div>
+        <div class="map-controls" aria-label="Управление картой">
+          <button class="icon-button" id="fit-map" aria-label="Показать все найденные места" title="Показать все найденные места"><svg class="icon" aria-hidden="true"><use href="#icon-fit"/></svg></button>
+          <button class="icon-button" id="find-me-button" aria-label="Моё местоположение" aria-busy="false" title="Моё местоположение"><svg class="icon" aria-hidden="true"><use href="#icon-locate"/></svg></button>
+          <button class="icon-button" id="zoom-in" aria-label="Приблизить карту" title="Приблизить карту"><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg></button>
+          <button class="icon-button" id="zoom-out" aria-label="Отдалить карту" title="Отдалить карту"><svg class="icon" aria-hidden="true"><use href="#icon-minus"/></svg></button>
+        </div>
+        <div class="map-bottom">
+          <div class="map-status" id="map-status" hidden><span id="map-status-text"></span> <button id="retry-map" hidden>Повторить</button></div>
+          <div class="map-count"><span class="dot"></span><span id="map-count-text"></span><button id="map-about-button" aria-label="О данных на карте">О данных</button></div>
+        </div>
+        <div class="map-empty" id="map-empty" hidden><strong>Здесь пока ничего нет</strong><p id="map-empty-text">Попробуйте другое название или категорию.</p><button class="secondary-button" id="map-reset-filters">Сбросить фильтры</button></div>
       </div>
-      <div class="map-bottom">
-        <div class="map-status" id="map-status" hidden><span id="map-status-text"></span> <button id="retry-map" hidden>Повторить</button></div>
-        <div class="map-count"><span class="dot"></span><span id="map-count-text"></span><button id="map-about-button" aria-label="О данных на карте">О данных</button></div>
-      </div>
-      <div class="map-empty" id="map-empty" hidden><strong>Здесь пока ничего нет</strong><p id="map-empty-text">Попробуйте другое название или категорию.</p><button class="secondary-button" id="map-reset-filters">Сбросить фильтры</button></div>
+      <div id="map-panel-inspector" class="map-panel-inspector"></div>
     </section>
     <nav class="mobile-view-switch" aria-label="Вид приложения">
-      <button id="view-map" aria-pressed="true" aria-controls="map"><svg class="icon" aria-hidden="true"><use href="#icon-map"/></svg>Карта</button>
-      <button id="view-list" aria-pressed="false" aria-controls="list-view"><svg class="icon" aria-hidden="true"><use href="#icon-list"/></svg>Список <span id="mobile-count"></span></button>
+      <button id="view-map" aria-pressed="false" aria-controls="map"><svg class="icon" aria-hidden="true"><use href="#icon-map"/></svg>Карта</button>
+      <button id="view-list" aria-pressed="true" aria-controls="list-view"><svg class="icon" aria-hidden="true"><use href="#icon-list"/></svg>Список <span id="mobile-count"></span></button>
     </nav>
   </main>
 

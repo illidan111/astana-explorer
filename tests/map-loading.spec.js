@@ -30,6 +30,7 @@ test('stalled tiles after zoom report a timeout and retry recovers', async ({ pa
   // success, stalled requests, and recovery without depending on OSM latency.
   await useLocalMapTiles(page);
   await page.goto('/');
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await expect(page.locator('.leaflet-tile-loaded').first()).toBeAttached({ timeout: 15000 });
   await expect(page.locator('#map-status')).toBeHidden({ timeout: 15000 });
   await page.clock.install();

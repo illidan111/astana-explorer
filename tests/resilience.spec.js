@@ -10,6 +10,7 @@ test('geolocation success marks the user and denied access has useful recovery',
   await context.setGeolocation({ latitude: 51.1283, longitude: 71.4305, accuracy: 25 });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#map .leaflet-tile-pane')).toBeAttached();
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await page.locator('#find-me-button').click();
   await expect(page.locator('.user-location-marker')).toBeVisible();
   await expect(page.locator('#location-status')).toContainText('Вы на карте');
@@ -23,6 +24,7 @@ test('geolocation success marks the user and denied access has useful recovery',
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#map .leaflet-tile-pane')).toBeAttached();
+  if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
   await page.locator('#find-me-button').click();
   await expect(page.locator('#location-status')).toContainText('Доступ к геолокации не разрешён');
   await expect(page.locator('#find-me-button')).toBeEnabled();
@@ -38,6 +40,7 @@ test('missing map library leaves search, details and favorites available', async
   await page.route('**/vendor/leaflet/leaflet.js', (route) => route.abort());
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#map-status')).toContainText('Не удалось загрузить карту');
+  await expect(page.locator('#list-map-status')).toBeVisible();
   await page.locator('#search-input').fill('Байтерек');
   await (await list(page)).click();
   await expect(page.locator('#card-name')).toHaveText('Байтерек');
@@ -115,7 +118,7 @@ test('the phone detail sheet contains keyboard focus', async ({ page }, testInfo
   await expect(page.locator('#close-button')).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   const detailsSummary = page.locator('#attraction-card .source-details > summary');
-  await expect(detailsSummary).toBeFocused();
+  await expect(page.locator('#share-place')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.locator('#close-button')).toBeFocused();
   await detailsSummary.focus();
@@ -123,9 +126,12 @@ test('the phone detail sheet contains keyboard focus', async ({ page }, testInfo
   await expect(page.locator('#attraction-card .source-details')).toHaveAttribute('open', '');
   await page.locator('#card-coordinate-source').focus();
   await page.keyboard.press('Tab');
-  await expect(page.locator('#close-button')).toBeFocused();
+  await expect(page.locator('#route-button')).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(page.locator('#card-coordinate-source')).toBeFocused();
+  await page.locator('#share-place').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#close-button')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(firstCard).toBeFocused();
 });

@@ -12,6 +12,7 @@
   const exampleForms = { one: 'пример', few: 'примера', other: 'примеров' };
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const mobile = matchMedia('(max-width: 760px)');
+  const detailsSheet = matchMedia('(max-width: 760px), (max-height: 440px)');
   const systemTheme = matchMedia('(prefers-color-scheme: dark)');
   const searchInput = byId('search-input');
   const filterChips = byId('filter-chips');
@@ -312,6 +313,7 @@
       const saved = favoriteIds.has(selectedAttraction.id);
       byId('favorite-toggle').setAttribute('aria-pressed', String(saved));
       byId('favorite-toggle').setAttribute('aria-label', saved ? 'Убрать из избранного' : 'Добавить в избранное');
+      byId('favorite-toggle').title = saved ? 'Убрать из избранного' : 'Сохранить место';
       byId('favorite-label').textContent = saved ? 'Сохранено' : 'Сохранить';
     }
   }
@@ -470,22 +472,29 @@
   }
 
   function openAttractionCard() {
-    const container = mobile.matches ? document.body : byId('list-view');
+    const container = detailsSheet.matches ? document.body : byId('map-panel-inspector');
     if (card.parentElement !== container) container.append(card);
-    card.dataset.presentation = mobile.matches ? 'sheet' : 'inspector';
-    card.setAttribute('aria-modal', String(mobile.matches));
-    byId('close-button').setAttribute('aria-label', mobile.matches ? 'Закрыть карточку' : 'К списку');
-    if (byId('close-label')) byId('close-label').textContent = mobile.matches ? 'Закрыть' : 'К списку';
-    if (mobile.matches) card.showModal();
+    card.dataset.presentation = detailsSheet.matches ? 'sheet' : 'inspector';
+    card.setAttribute('aria-modal', String(detailsSheet.matches));
+    byId('close-button').setAttribute('aria-label', 'Закрыть карточку');
+    if (byId('close-label')) byId('close-label').textContent = 'Закрыть';
+    if (detailsSheet.matches) card.showModal();
     else card.show();
   }
 
   function closeAttraction({ restoreFocus = true } = {}) {
     if (!card.open) return;
     const focused = document.activeElement;
+    const mapView = card.dataset.presentation === 'inspector' && map ? { center: map.getCenter(), zoom: map.getZoom() } : null;
     cardCloseContexts.push({ restoreFocus });
     resetShareState();
     card.close();
+    if (mapView) {
+      // Closing the split inspector expands the map. Keep its existing view
+      // while Leaflet recalculates the new canvas dimensions.
+      map.invalidateSize({ pan: false });
+      map.setView(mapView.center, mapView.zoom, { animate: false });
+    }
     // Native dialogs restore the opener synchronously. Filtering must keep an
     // outside input or category button focused so typing and navigation continue.
     if (!restoreFocus && focused instanceof HTMLElement && !card.contains(focused)
@@ -493,20 +502,21 @@
   }
 
   function syncCardPresentation() {
-    if (!card.open || byId('info-dialog').open || card.matches(':modal') === mobile.matches) return;
+    if (!card.open || byId('info-dialog').open || card.matches(':modal') === detailsSheet.matches) return;
     const focused = document.activeElement;
-    // The desktop sidebar may already be display:none after the media query
-    // changes. Its child's scrollTop then reads zero until it leaves that tree.
+    // The desktop map can already be hidden in mobile catalogue view after the
+    // media query changes. Restore its child's remembered scroll position.
     const scrollTop = card.getClientRects().length ? card.scrollTop : cardScrollPosition;
     // A dialog must close before switching between show() and showModal().
     // This lifecycle event is presentation-only: selection and sharing survive.
     cardCloseContexts.push({ presentationChange: true });
     card.close();
     openAttractionCard();
+    if (!mobile.matches) revealSelectedOnMap();
     card.scrollTop = scrollTop;
     cardScrollPosition = card.scrollTop;
     if (focused instanceof HTMLElement && focused.isConnected
-      && (!mobile.matches || card.contains(focused))
+      && (!detailsSheet.matches || card.contains(focused))
       && (focused.checkVisibility?.() ?? focused.getClientRects().length > 0)) {
       focused.focus({ preventScroll: true });
     } else byId('close-button').focus({ preventScroll: true });
@@ -769,7 +779,7 @@
       }
     });
     if ('ResizeObserver' in window) {
-      const observer = new ResizeObserver(() => requestAnimationFrame(() => map.invalidateSize({ pan: false })));
+      const observer = new ResizeObserver(() => requestAnimationFrame(() => map.invalidateSize({ pan: true, animate: false })));
       observer.observe(byId('map'));
     }
   }
@@ -851,7 +861,7 @@
       }
       input.focus({ preventScroll: true });
       input.select();
-      input.scrollIntoView({ block: 'nearest' });
+      input.scrollIntoView({ block: 'center' });
     } finally {
       if (revision === shareRevision) {
         sharePending = false;
@@ -882,6 +892,7 @@
   // The catalogue and event handlers are ready before optional map resources.
   // Slow map loading must never swallow search, theme or category actions.
   searchQuery = normalize(searchInput.value);
+  setMobileView('list');
   filterMarkers();
   updateThemeToggle();
 
@@ -1005,6 +1016,7 @@
     if (!hasThemePreference) applyTheme(event.matches ? 'dark' : 'light');
   });
   mobile.addEventListener('change', syncCardPresentation);
+  detailsSheet.addEventListener('change', syncCardPresentation);
 
   attractionList.addEventListener('pointerover', (event) => {
     const button = event.target.closest('.attraction-list-button');
@@ -1029,15 +1041,22 @@
 
   attractionList.addEventListener('keydown', (event) => {
     const button = event.target.closest('.attraction-list-button');
-    if (!button || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    if (!button || !['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)
+      || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const buttons = [...attractionList.querySelectorAll('.attraction-list-button')];
+    const firstRowTop = buttons[0].getBoundingClientRect().top;
+    const columns = getComputedStyle(attractionList).display === 'grid'
+      ? buttons.filter((candidate) => Math.abs(candidate.getBoundingClientRect().top - firstRowTop) < 1).length || 1
+      : 1;
     let index = buttons.indexOf(button);
     if (event.key === 'Home') index = 0;
     if (event.key === 'End') index = buttons.length - 1;
-    if (event.key === 'ArrowDown') index = (index + 1) % buttons.length;
-    if (event.key === 'ArrowUp') index = (index - 1 + buttons.length) % buttons.length;
+    if (event.key === 'ArrowRight') index += 1;
+    if (event.key === 'ArrowLeft') index -= 1;
+    if (event.key === 'ArrowDown') index += columns;
+    if (event.key === 'ArrowUp') index -= columns;
     event.preventDefault();
-    buttons[index].focus();
+    buttons[index]?.focus();
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && card.open && !card.matches(':modal') && !byId('info-dialog').open) {

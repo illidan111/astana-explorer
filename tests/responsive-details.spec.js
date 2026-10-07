@@ -32,6 +32,7 @@ for (const [width, height] of viewports) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.route('**/tile.openstreetmap.org/**', (route) => route.abort());
     await page.goto('/');
+    if (await page.locator('#view-map').isVisible()) await page.locator('#view-map').click();
     await expect(page.locator('#retry-map')).toBeVisible();
     await expectVisibleMapIcon(page);
     await page.locator('#fit-map').click();
@@ -61,6 +62,9 @@ for (const [width, height] of viewports) {
     const place = page.locator('[data-place-id="nur-astana-mosque"]');
     await place.click();
     await expect(page.locator('#attraction-card')).toBeVisible();
+    await expectUncovered(page.locator('#card-name'));
+    await expectUncovered(page.locator('#route-button'));
+    await expectUncovered(page.locator('#close-button'));
     await page.locator('#attraction-card').evaluate((dialog) => { dialog.scrollTop = dialog.scrollHeight; });
     await expectUncovered(page.locator('#close-button'));
     await page.locator('#close-button').click();
